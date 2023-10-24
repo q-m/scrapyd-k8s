@@ -20,13 +20,45 @@ There are some important differences, though:
 
 At this moment, each spider job is directly linked to a Docker instance or
 Kubernetes job, and the daemon will retrieve its state by looking at those
-jobs. Perhaps, in the future, some other job queue mechanism will be used, but
-perhaps this is good enough.
+jobs. This makes it easy to inspect and adjust the spider queue even outside
+scrapyd-k8s.
 
-Also, no scheduling is happening (yet?), so all jobs created will be started
-immediately.
+No scheduling is happening (yet?), so all jobs created will be started immediately.
 
-## Docker image
+## Running
+
+Typically this application will be run on using a (Docker or Kubernetes) container.
+You will need to provide a configuration file.
+
+### Docker
+
+```
+docker build -t scrapyd_k8s .
+docker run \
+  -v ./scrapyd_k8s.conf:/opt/app/scrapyd_k8s.conf:ro \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v $HOME/.docker/config.json:/root/.docker/config.json:ro \
+  scrapyd_k8s
+```
+
+### Kubernetes
+
+### Local
+
+For development, or just a quick start, you can also run this application locally.
+
+Requirements:
+- [Python 3](https://www.python.org/)
+- [Skopeo](https://github.com/containers/skopeo) available in `PATH` (for remote repositories)
+- Either [Docker](https://www.docker.com/) or [Kubernetes](https://kubernetes.io/) setup and accessible
+  (scheduling will require Kubernetes 1.24+)
+
+Copy the configuration `cp scrapyd_k8s.sample.conf scrapyd_k8s.conf` and specify your project details.
+
+TODO finish this section
+
+
+## Spider as Docker image
 
 - Spiders are distributed as Docker images.
 - One can run `scrapy crawl <spider>` in the container to run a spider,
@@ -77,18 +109,6 @@ jobs:
             org.scrapy.project=CHANGEME
             org.scrapy.spiders=${{ steps.spiders.outputs.spiders }}
 ```
-
-## Installation
-
-Requirements:
-- [Python 3](https://www.python.org/)
-- [Skopeo](https://github.com/containers/skopeo) available in `PATH` (for remote repositories)
-- Either [Docker](https://www.docker.com/) or [Kubernetes](https://kubernetes.io/) setup and accessible
-  (scheduling will require Kubernetes 1.24+)
-
-Copy the configuration `cp scrapyd_k8s.sample.conf scrapyd_k8s.conf` and specify your project details.
-
-TODO finish this section
 
 ## API
 

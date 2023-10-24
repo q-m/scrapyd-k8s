@@ -1,2 +1,4 @@
 docker>=5.0.0
 kubernetes>=27.2.0 # introduction of suspend in jobspec
+flask>=2.0.0
+natsort>=8.0.0
