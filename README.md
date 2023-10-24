@@ -28,7 +28,9 @@ No scheduling is happening (yet?), so all jobs created will be started immediate
 ## Running
 
 Typically this application will be run on using a (Docker or Kubernetes) container.
-You will need to provide a configuration file.
+You will need to provide a configuration file, use one of the sample configuration
+files as a template ([`scrapyd_k8s.sample-k8s.conf`](./scrapyd_k8s.sample-k8s.conf)
+or [`scrapyd_k8s.sample-docker.conf`](./scrapyd_k8s.sample-docker.conf)).
 
 ### Docker
 
@@ -53,7 +55,7 @@ Requirements:
 - Either [Docker](https://www.docker.com/) or [Kubernetes](https://kubernetes.io/) setup and accessible
   (scheduling will require Kubernetes 1.24+)
 
-Copy the configuration `cp scrapyd_k8s.sample.conf scrapyd_k8s.conf` and specify your project details.
+Copy a sample configuration to `scrapyd_k8s.conf` and specify your project details.
 
 TODO finish this section
 
