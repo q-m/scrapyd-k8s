@@ -40,7 +40,7 @@ docker run \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v $HOME/.docker/config.json:/root/.docker/config.json:ro \
   -u 0 \
-  ghcr.io/q-m/scrapyd-k8s:main
+  ghcr.io/q-m/scrapyd-k8s:latest
 ```
 
 This is not really recommended for production, as it exposes the Docker socket and

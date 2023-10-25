@@ -15,7 +15,7 @@ spec:
     spec:
       serviceAccountName: scrapyd-k8s
       containers:
-        - image: ghcr.io/q-m/scrapyd-k8s:main # TODO latest when published
+        - image: ghcr.io/q-m/scrapyd-k8s:latest
           imagePullPolicy: IfNotPresent
           name: scrapyd-k8s
           ports:
