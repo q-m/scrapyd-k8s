@@ -35,16 +35,16 @@ or [`scrapyd_k8s.sample-docker.conf`](./scrapyd_k8s.sample-docker.conf)).
 ### Docker
 
 ```
-docker build -t scrapyd_k8s .
 docker run \
   -v ./scrapyd_k8s.conf:/opt/app/scrapyd_k8s.conf:ro \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v $HOME/.docker/config.json:/root/.docker/config.json:ro \
   -u 0 \
-  scrapyd_k8s
+  ghcr.io/q-m/scrapyd-k8s:main
 ```
 
-(pending: figure out how to run not as root)
+This is not really recommended for production, as it exposes the Docker socket and
+runs as root. It may be useful to try things out.
 
 ### Kubernetes
 
