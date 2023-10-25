@@ -22,7 +22,7 @@ class Docker:
         jobs = [self._parse_job(j) for j in jobs]
         return jobs
 
-    def schedule(self, repository, project, version, spider, job_id, env_source, settings, args):
+    def schedule(self, repository, project, version, spider, job_id, env_config, env_secret, settings, args):
         _settings = [i for s in settings for i in ['-s', s]]
         _args = [i for a in args for i in ['-a', a]]
         env = {

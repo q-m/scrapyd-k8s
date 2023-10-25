@@ -33,7 +33,8 @@ def api_schedule():
     _version = request.form.get('_version', 'latest') # TODO allow customizing latest tag
     # any other parameter is passed as spider argument
     args = { k: v for k, v in request.form.items() if k not in ('project', 'spider', 'setting', 'jobid', 'priority', '_version') }
-    jobid = launcher.schedule(project['repository'], project_id, _version, spider, job_id, project.get('env_secret'), settings, args)
+    env_config, env_secret = project.get('env_config'), project.get('env_secret')
+    jobid = launcher.schedule(project['repository'], project_id, _version, spider, job_id, env_config, env_secret, settings, args)
     return { 'status': 'ok', 'jobid': job_id }
 
 @app.post("/cancel.json")

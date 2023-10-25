@@ -36,7 +36,7 @@ class K8s:
         jobs = [self._parse_job(j) for j in jobs.items]
         return jobs
 
-    def schedule(self, repository, project, version, spider, job_id, env_source, settings, args):
+    def schedule(self, repository, project, version, spider, job_id, env_config, env_secret, settings, args):
         job_name = self._k8s_job_name(project, job_id)
         _settings = [i for s in settings for i in ['-s', s]]
         _args = [i for a in args for i in ['-a', a]]
@@ -50,14 +50,21 @@ class K8s:
             self.LABEL_PROJECT: project,
             self.LABEL_SPIDER: spider,
         }
+        env_from = []
+        if env_config:
+            env_from.append(kubernetes.client.V1EnvFromSource(
+                config_map_ref=kubernetes.client.V1ConfigMapEnvSource(name=env_config, optional=False)
+            ))
+        if env_secret:
+            env_from.append(kubernetes.client.V1EnvFromSource(
+                secret_ref=kubernetes.client.V1SecretEnvSource(name=env_secret, optional=False)
+            ))
         container = kubernetes.client.V1Container(
             name=job_name,
             image=repository + ':' + version,
             args=['scrapy', 'crawl', spider, *_args, *_settings],
             env=[kubernetes.client.V1EnvVar(k, v) for k, v in env.items()],
-            env_from=[kubernetes.client.V1EnvFromSource(
-                secret_ref=kubernetes.client.V1SecretEnvSource(name=env_source, optional=False)
-            )] if env_source else None
+            env_from=env_from
         )
         pod_template = kubernetes.client.V1PodTemplateSpec(
             metadata=kubernetes.client.V1ObjectMeta(name=job_name, labels=labels),
