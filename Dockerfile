@@ -14,8 +14,7 @@ COPY /app.py /opt/app/
 
 RUN python -m compileall /opt/app/scrapyd_k8s
 
-# TODO make it work with a regular user
-#USER nobody
+USER nobody
 EXPOSE 6800
 
 WORKDIR /opt/app
