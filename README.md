@@ -48,6 +48,10 @@ runs as root. It may be useful to try things out.
 
 ### Kubernetes
 
+1. Create the spider namespace: `kubectl create namespace scrapyd`
+2. Adapt the spider configuration in [`kubernetes.yaml`](./kubernetes.yaml) (`scrapyd_k8s.conf` in configmap)
+3. Create the resources: `kubectl create -f kubernetes.yaml`
+
 ### Local
 
 For development, or just a quick start, you can also run this application locally.

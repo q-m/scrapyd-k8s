@@ -22,7 +22,11 @@ class K8s:
     def __init__(self, config):
         self._namespace = config.scrapyd().get('namespace', 'default')
         self._pull_secret = config.scrapyd().get('pull_secret')
-        kubernetes.config.load_kube_config() # TODO figure out where to put this
+        # TODO figure out where to put Kubernetes initialisation
+        try:
+            kubernetes.config.load_incluster_config()
+        except kubernetes.config.config_exception.ConfigException:
+            kubernetes.config.load_kube_config()
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
 
