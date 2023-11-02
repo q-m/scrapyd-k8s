@@ -38,14 +38,24 @@ spec:
             requests:
               memory: 64Mi # TODO check
           volumeMounts:
-            - mountPath: /opt/app/scrapyd_k8s.conf
-              name: scrapyd-k8s-config
+            - name: scrapyd-k8s-config
+              mountPath: /opt/app/scrapyd_k8s.conf
               readOnly: true
               subPath: scrapyd_k8s.conf
+            # Enable if your spider repository needs a pull secret
+            # - name: scrapyd-k8s-pull-secret
+            #   mountPath: /opt/app/.docker
+            #   readOnly: true
       volumes:
         - configMap:
             name: scrapyd-k8s-config
           name: scrapyd-k8s-config
+        # Enable if your spider repository needs a pull secret
+        # - secret:
+        #     secretName: pull-secret
+        #     items:
+        #       - key: .dockerconfigjson
+        #         path: config.json
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -76,7 +86,7 @@ metadata:
   labels:
     app.kubernetes.io/name: spider-example
 stringData:
-  FOO_API_KEY: 1234567890abcdef
+  FOO_API_KEY: "1234567890abcdef"
 ---
 apiVersion: v1
 kind: Service
