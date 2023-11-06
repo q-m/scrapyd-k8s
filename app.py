@@ -61,7 +61,6 @@ def api_listversions():
     tags = repository.listtags(project['repository'])
     tags = [t for t in tags if not t.startswith('sha-')]
     tags.sort(key=natsort_keygen(alg=ns.NUMAFTER))
-    tags.reverse()
     return { 'status': 'ok', 'versions': tags }
 
 @app.get("/listspiders.json")
