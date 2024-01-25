@@ -64,6 +64,12 @@ Requirements:
 
 Copy a sample configuration to `scrapyd_k8s.conf` and specify your project details.
 
+For Docker, you probably need to pull the image
+
+```sh
+docker pull ghcr.io/q-m/scrapyd-k8-spider-example
+```
+
 TODO finish this section
 
 
