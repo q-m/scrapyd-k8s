@@ -76,48 +76,9 @@ TODO finish this section
   * `org.scrapy.project` - the project name
   * `org.scrapy.spiders` - the spiders (those returned by `scrapy list`, comma-separated)
 
-For example, you could use this in a Github Action:
+An example spider is available at [q-m/scrapyd-k8s-example-spider](https://github.com/q-m/scrapyd-k8s-spider-example),
+including a [Github Action](https://github.com/q-m/scrapyd-k8s-spider-example/blob/main/.github/workflows/container.yml) for building a container.
 
-```yaml
-# ...
-jobs:
-  container:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v4
-        with: # ...
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Build
-        id: build
-        uses: docker/build-push-action@v2
-        with:
-          push: false
-          load: true
-          tags: spider:latest
-
-      - name: Get spiders
-        if: ${{ github.event_name != 'pull_request' }}
-        id: spiders
-        run: |
-          SPIDERS=`docker run --rm spider:latest scrapy list | tr '\n' ',' | sed 's/,$//'`
-          echo "spiders=$SPIDERS" >> "$GITHUB_OUTPUT"
-
-      - name: Rebuild and push
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/build-push-action@v2
-        with:
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: |
-            ${{ steps.meta.outputs.labels }}
-            org.scrapy.project=CHANGEME
-            org.scrapy.spiders=${{ steps.spiders.outputs.spiders }}
-```
 
 ## API
 

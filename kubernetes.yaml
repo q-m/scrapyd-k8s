@@ -74,10 +74,11 @@ data:
 
     namespace    = scrapyd
 
-    # adapt the spider config to your use-case
+    # This is an example spider that should work out of the box.
+    # Adapt the spider config to your use-case, with an otherwise unused secret.
     [project.example]
     env_secret   = spider-example-env
-    repository   = ghcr.io/example-org/example-spider
+    repository   = ghcr.io/q-m/scrapyd-k8s-spider-example
 ---
 apiVersion: v1
 kind: Secret
