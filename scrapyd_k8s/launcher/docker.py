@@ -30,7 +30,7 @@ class Docker:
             'SCRAPYD_SPIDER': spider,
             'SCRAPYD_JOB': job_id,
         } # TODO env_source handling
-        c = self._docker.containers.create(
+        c = self._docker.containers.run(
             image=repository + ':' + version,
             command=['scrapy', 'crawl', spider, *_args, *_settings],
             environment=env,

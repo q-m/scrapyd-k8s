@@ -32,25 +32,45 @@ You will need to provide a configuration file, use one of the sample configurati
 files as a template ([`scrapyd_k8s.sample-k8s.conf`](./scrapyd_k8s.sample-k8s.conf)
 or [`scrapyd_k8s.sample-docker.conf`](./scrapyd_k8s.sample-docker.conf)).
 
+The next section explains how to get this running Docker, Kubernetes or Local.
+Then read on for an example of how to use the API.
+
 ### Docker
 
 ```
+cp scrapyd_k8s.sample-docker.conf scrapyd_k8s.conf
+docker build -t ghcr.io/q-m/scrapyd-k8s:latest .
 docker run \
+  --rm \
   -v ./scrapyd_k8s.conf:/opt/app/scrapyd_k8s.conf:ro \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v $HOME/.docker/config.json:/root/.docker/config.json:ro \
   -u 0 \
+  -p 127.0.0.1:6800:6800 \
   ghcr.io/q-m/scrapyd-k8s:latest
 ```
 
-This is not really recommended for production, as it exposes the Docker socket and
-runs as root. It may be useful to try things out.
+You'll be able to talk to localhost on port `6800`.
+
+Make sure to pull the spider image so it is known locally.
+In case of the default example spider:
+
+```sh
+docker pull ghcr.io/q-m/scrapyd-k8-spider-example
+```
+
+Note that running like this in Docker is not really recommended for production,
+as it exposes the Docker socket and runs as root. It may be useful to try
+things out.
+
 
 ### Kubernetes
 
 1. Create the spider namespace: `kubectl create namespace scrapyd`
 2. Adapt the spider configuration in [`kubernetes.yaml`](./kubernetes.yaml) (`scrapyd_k8s.conf` in configmap)
 3. Create the resources: `kubectl create -f kubernetes.yaml`
+
+You'll be able to talk to the `scrapyd-k8s` service on port `6800`.
 
 ### Local
 
@@ -62,15 +82,105 @@ Requirements:
 - Either [Docker](https://www.docker.com/) or [Kubernetes](https://kubernetes.io/) setup and accessible
   (scheduling will require Kubernetes 1.24+)
 
-Copy a sample configuration to `scrapyd_k8s.conf` and specify your project details.
+This will work with either Docker or Kubernetes (provided it is setup).
+For example, for Docker:
 
-For Docker, you probably need to pull the image
+```sh
+cp scrapyd_k8s.sample_docker.conf scrapyd_k8s.conf
+python3 app.py
+```
+
+You'll be able to talk to localhost on port `6800`.
+
+For Docker, make sure to pull the spider image so it is known locally.
+In case of the default example spider:
 
 ```sh
 docker pull ghcr.io/q-m/scrapyd-k8-spider-example
 ```
 
-TODO finish this section
+
+## Accessing the API
+
+With `scrapyd-k8s` running and setup, you can access it. Here we assume that
+it listens on `localhost:6800` (for Kubernetes, you would use
+the service name `scrapyd-k8s:6800` instead).
+
+```sh
+curl http://localhost:6800/daemonstatus.json
+```
+
+> ```json
+> {"spiders":0,"status":"ok"}
+> ```
+
+```sh
+curl http://localhost:6800/listprojects.json
+```
+
+> ```json
+> {"projects":["example"],"status":"ok"}
+> ```
+
+```sh
+curl 'http://localhost:6800/listversions.json?project=example'
+```
+
+> ```json
+> {"status":"ok","versions":["latest"]}
+> ```
+
+```sh
+curl 'http://localhost:6800/listspiders.json?project=example&_version=latest'
+```
+
+> ```json
+> {"spiders":["quotes"],"status":"ok"}
+> ```
+
+```sh
+curl 'http://localhost:6800/schedule.json?project=example&_version=latest'
+```
+
+> ```json
+> {"spiders":["quotes"],"status":"ok"}
+> ```
+
+```sh
+curl http://localhost:6800/listjobs.json
+```
+```json
+{
+  "finished":[],
+  "pending":[],
+  "running":[{"id":"e9b81fccbec211eeb3b109f30f136c01","project":"example","spider":"quotes","state":"pending"}],
+  "status":"ok"
+}
+```
+
+To see what the spider has done, look at the container logs:
+
+```sh
+docker ps -a
+```
+
+> ```
+> CONTAINER ID  IMAGE                                          COMMAND                CREATED   STATUS              NAMES
+> 8c514a7ac917  ghcr.io/q-m/scrapyd-k8s-spider-example:latest  "scrapy crawl quotes"  42s ago   Exited (0) 30s ago  scrapyd_example_cb50c27cbec311eeb3b109f30f136c01
+> ```
+
+```sh
+docker logs 8c514a7ac917
+```
+
+> ```
+> [scrapy.utils.log] INFO: Scrapy 2.11.0 started (bot: example)
+> ...
+> [scrapy.core.scraper] DEBUG: Scraped from <200 http://quotes.toscrape.com/>
+> {'text': 'The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.', 'author': 'Albert Einstein', 'tags': 'change'}
+> ...
+> [scrapy.core.engine] INFO: Spider closed (finished)
+> ```
 
 
 ## Spider as Docker image
