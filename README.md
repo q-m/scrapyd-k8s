@@ -139,7 +139,7 @@ curl 'http://localhost:6800/listspiders.json?project=example&_version=latest'
 > ```
 
 ```sh
-curl 'http://localhost:6800/schedule.json?project=example&_version=latest'
+curl -F project=example -F _version=latest -F spider=quotes http://localhost:6800/schedule.json
 ```
 
 > ```json
