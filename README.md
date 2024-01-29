@@ -143,7 +143,7 @@ curl 'http://localhost:6800/schedule.json?project=example&_version=latest'
 ```
 
 > ```json
-> {"spiders":["quotes"],"status":"ok"}
+> {"jobid":"e9b81fccbec211eeb3b109f30f136c01","status":"ok"}
 > ```
 
 ```sh
