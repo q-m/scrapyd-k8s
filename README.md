@@ -153,7 +153,7 @@ curl http://localhost:6800/listjobs.json
 {
   "finished":[],
   "pending":[],
-  "running":[{"id":"e9b81fccbec211eeb3b109f30f136c01","project":"example","spider":"quotes","state":"pending"}],
+  "running":[{"id":"e9b81fccbec211eeb3b109f30f136c01","project":"example","spider":"quotes","state":"running"}],
   "status":"ok"
 }
 ```
