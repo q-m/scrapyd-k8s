@@ -56,7 +56,7 @@ Make sure to pull the spider image so it is known locally.
 In case of the default example spider:
 
 ```sh
-docker pull ghcr.io/q-m/scrapyd-k8-spider-example
+docker pull ghcr.io/q-m/scrapyd-k8s-spider-example
 ```
 
 Note that running like this in Docker is not really recommended for production,
@@ -96,7 +96,7 @@ For Docker, make sure to pull the spider image so it is known locally.
 In case of the default example spider:
 
 ```sh
-docker pull ghcr.io/q-m/scrapyd-k8-spider-example
+docker pull ghcr.io/q-m/scrapyd-k8s-spider-example
 ```
 
 
