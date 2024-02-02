@@ -1,21 +1,22 @@
-import json
-import subprocess
+import docker
 
 class Local:
 
     def __init__(self, config):
-        pass
+        self._docker = docker.from_env()
 
     def listtags(self, repo):
         """Returns available tags from local docker images"""
-        r = subprocess.check_output(['docker', 'image', 'ls', repo, '--format', '{{ .Tag }}']).decode('utf-8')
-        tags = r.split('\n')
+        images = self._docker.images.list(repo)
+        tags = [i.tags[0].split(':')[-1] for i in images if i.tags]
         # TODO error handling
-        return [t for t in tags if t and t != '<none>']
+        return tags
 
     def listspiders(self, repo, project, version):
         """Returns available spiders from a local docker image"""
-        r = subprocess.check_output(['docker', 'image', 'inspect', repo + ':' + version, '--format', '{{ index .Config.Labels "org.scrapy.spiders" }}']).decode('utf-8')
+        image = self._docker.images.get(repo + ':' + version)
+        r = image.labels.get('org.scrapy.spiders')
+        if not r: return []
         spiders = r.split(',')
         spiders = [s.strip() for s in spiders]
         return [s for s in spiders if s]
