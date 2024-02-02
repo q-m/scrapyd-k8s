@@ -86,7 +86,7 @@ This will work with either Docker or Kubernetes (provided it is setup).
 For example, for Docker:
 
 ```sh
-cp scrapyd_k8s.sample_docker.conf scrapyd_k8s.conf
+cp scrapyd_k8s.sample-docker.conf scrapyd_k8s.conf
 python3 app.py
 ```
 
