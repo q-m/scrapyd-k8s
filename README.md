@@ -87,7 +87,7 @@ For example, for Docker:
 
 ```sh
 cp scrapyd_k8s.sample-docker.conf scrapyd_k8s.conf
-python3 app.py
+python3 -m scrapyd_k8s
 ```
 
 You'll be able to talk to localhost on port `6800`.

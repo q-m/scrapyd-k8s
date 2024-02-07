@@ -4,21 +4,20 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends skopeo && \
     rm -Rf /var/lib/apt/lists/* /var/cache/apt/*
 
-COPY requirements.txt /opt/app/requirements.txt
-
 WORKDIR /opt/app
+
+COPY requirements.txt .
+
 RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
 
-COPY /scrapyd_k8s/ /opt/app/scrapyd_k8s
-COPY /app.py /opt/app/
+COPY scrapyd_k8s/ scrapyd_k8s/
 
-RUN python -m compileall /opt/app/scrapyd_k8s
+RUN python -m compileall ./scrapyd_k8s
 
 USER nobody
 EXPOSE 6800
 
-WORKDIR /opt/app
-
 ENV PYTHONPATH=/opt/app/
+ENV PYTHONUNBUFFERED=1
 
-CMD ["python3", "/opt/app/app.py"]
+CMD ["python3", "-m", "scrapyd_k8s"]

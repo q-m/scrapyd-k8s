@@ -1,6 +1,8 @@
 import kubernetes
 import kubernetes.stream
 
+from ..utils import native_stringify_dict
+
 class K8s:
 
     LABEL_PROJECT = 'org.scrapy.project'
@@ -38,8 +40,8 @@ class K8s:
 
     def schedule(self, repository, project, version, spider, job_id, env_config, env_secret, settings, args):
         job_name = self._k8s_job_name(project, job_id)
-        _settings = [i for s in settings for i in ['-s', s]]
-        _args = [i for a in args for i in ['-a', a]]
+        _settings = [i for k, v in native_stringify_dict(settings, keys_only=False).items() for i in ['-s', f"{k}={v}"]]
+        _args = [i for k, v in native_stringify_dict(args, keys_only=False).items() for i in ['-a', f"{k}={v}"]]
         env = {
             'SCRAPY_PROJECT': project,
             'SCRAPYD_SPIDER': spider,
