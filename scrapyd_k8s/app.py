@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import uuid
+
+import repository
+from config import Config
 from flask import Flask, request
 from markupsafe import escape
 from natsort import natsort_keygen, ns
-
-import scrapyd_k8s.repository
-from scrapyd_k8s.config import Config
 
 app = Flask(__name__)
 config = Config()
@@ -27,7 +27,7 @@ def api_schedule():
     if not project:
         return { 'status': 'error', 'message': 'project not found' }
     spider = request.form['spider']
-    settings = request.form.getlist('setting')
+    settings = dict(x.split('=', 1) for x in request.form.getlist('setting'))
     job_id = request.form.get('jobid', uuid.uuid1().hex)
     # priority = request.form.get('priority') or 0 # TODO implement priority
     _version = request.form.get('_version', 'latest') # TODO allow customizing latest tag

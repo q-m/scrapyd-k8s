@@ -1,4 +1,5 @@
 import docker
+from scrapyd_k8s.utils import native_stringify_dict
 
 class Docker:
 
@@ -23,8 +24,8 @@ class Docker:
         return jobs
 
     def schedule(self, repository, project, version, spider, job_id, env_config, env_secret, settings, args):
-        _settings = [i for s in settings for i in ['-s', s]]
-        _args = [i for a in args for i in ['-a', a]]
+        _settings = [i for k, v in native_stringify_dict(settings, keys_only=False).items() for i in ['-s', f"{k}={v}"]]
+        _args = [i for k, v in native_stringify_dict(args, keys_only=False).items() for i in ['-a', f"{k}={v}"]]
         env = {
             'SCRAPY_PROJECT': project,
             'SCRAPYD_SPIDER': spider,
