@@ -1,3 +1,4 @@
+from datetime import datetime
 import docker
 from ..utils import native_stringify_dict
 
@@ -14,8 +15,11 @@ class Docker:
         'exited': 'finished'
     }
 
+    TIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+
     def __init__(self, config):
         self._docker = docker.from_env()
+        self._api_client = docker.APIClient()
 
     def listjobs(self, project=None):
         label = self.LABEL_PROJECT + ('=%s'%(project) if project else '')
@@ -57,13 +61,37 @@ class Docker:
         return prevstate
 
     def _parse_job(self, c):
-        return {
+        # get container details
+        container_details = self._api_client.inspect_container(c.id)
+
+        # convert iso time to request format
+        start_time_iso = container_details["State"]["StartedAt"]
+        end_time_iso = container_details["State"]["FinishedAt"]
+        start_time = datetime.fromisoformat(start_time_iso).strftime(
+            self.TIME_FORMAT
+        )
+        end_time = datetime.fromisoformat(end_time_iso).strftime(
+            self.TIME_FORMAT
+        )
+
+        # add start and end time depending on state
+        out = {
             'id': c.labels.get(self.LABEL_JOB_ID),
             'state': self._docker_to_scrapyd_status(c.status),
             'project': c.labels.get(self.LABEL_PROJECT),
             'spider': c.labels.get(self.LABEL_SPIDER)
         }
-   
+
+        if out['state'] == "running":
+            out["start_time"] = start_time
+        elif out['state'] == "finished":
+            out["start_time"] = start_time
+            out["end_time"] = end_time
+
+        return out
+
+
+
     def _get_container(self, project, job_id):
         filters = { 'label': self.LABEL_JOB_ID + '=' + job_id }
         c = self._docker.containers.list(all=True, filters=filters)
