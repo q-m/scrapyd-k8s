@@ -1,5 +1,7 @@
 from datetime import datetime
+
 import docker
+
 from ..utils import native_stringify_dict
 
 class Docker:
@@ -89,7 +91,6 @@ class Docker:
             out["end_time"] = end_time
 
         return out
-
 
 
     def _get_container(self, project, job_id):
