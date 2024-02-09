@@ -13,11 +13,14 @@ class Local:
         return tags
 
     def listspiders(self, repo, project, version):
-        """Returns available spiders from a local docker image"""
-        image = self._docker.images.get(repo + ':' + version)
-        r = image.labels.get('org.scrapy.spiders')
-        if not r: return []
-        spiders = r.split(',')
-        spiders = [s.strip() for s in spiders]
-        return [s for s in spiders if s]
+        """Returns available spiders from a local docker image, or None on error."""
+        try:
+            image = self._docker.images.get(repo + ':' + version)
+            r = image.labels.get('org.scrapy.spiders')
+            if not r: return None
+            spiders = r.split(',')
+            spiders = [s.strip() for s in spiders]
+            return [s for s in spiders if s]
+        except docker.errors.ImageNotFound:
+            return None
 

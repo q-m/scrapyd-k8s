@@ -13,13 +13,15 @@ class Remote:
         return r['Tags']
 
     def listspiders(self, repo, project, version):
-        """Returns available spiders from a docker image"""
-        r = json.loads(subprocess.check_output(['skopeo', 'inspect', 'docker://' + repo + ':' + version]))
-        labels = (r['Labels'] or {})
+        """Returns available spiders from a docker image, or None on error."""
+        r = subprocess.run(['skopeo', 'inspect', 'docker://' + repo + ':' + version], capture_output=True, text=True)
+        if r.returncode != 0: return None
+        j = json.loads(r.stdout)
+        labels = (j['Labels'] or {})
         # TODO more useful error when labels are absent
         # TODO warn if org.scrapy.project is different from supplied project
         if 'org.scrapy.spiders' not in labels:
-            return []
+            return None
         if labels['org.scrapy.spiders'].strip() == '':
             return []
         spiders = labels['org.scrapy.spiders'].split(',')

@@ -86,6 +86,8 @@ def api_listspiders():
     _version = request.args.get('_version', 'latest') # TODO allow customizing latest tag
 
     spiders = repository.listspiders(project['repository'], project_id, _version)
+    if spiders is None:
+        return error('project version not found in repository', status=404)
     return { 'status': 'ok', 'spiders': spiders }
 
 @app.get("/listjobs.json")
