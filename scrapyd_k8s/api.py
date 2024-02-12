@@ -35,11 +35,10 @@ def api_schedule():
     job_id = request.form.get('jobid', uuid.uuid1().hex)
     # priority = request.form.get('priority') or 0 # TODO implement priority
     _version = request.form.get('_version', 'latest') # TODO allow customizing latest tag
-
     # any other parameter is passed as spider argument
     args = { k: v for k, v in request.form.items() if k not in ('project', 'spider', 'setting', 'jobid', 'priority', '_version') }
-    env_config, env_secret = project.get('env_config'), project.get('env_secret')
-    jobid = launcher.schedule(project['repository'], project_id, _version, spider, job_id, env_config, env_secret, settings, args)
+    env_config, env_secret = project.env_config(), project.env_secret()
+    jobid = launcher.schedule(project, _version, spider, job_id, settings, args)
     return { 'status': 'ok', 'jobid': job_id }
 
 @app.post("/cancel.json")
@@ -51,7 +50,6 @@ def api_cancel():
     if not job_id:
         return error('job missing in form parameters', status=400)
     signal = request.form.get('signal', 'TERM')
-
     prevstate = launcher.cancel(project_id, job_id, signal)
     if not prevstate:
         return error('job not found', status=404)
@@ -69,8 +67,7 @@ def api_listversions():
     project = config.project(project_id)
     if not project:
         return error('project not found in configuration', status=404)
-
-    tags = repository.listtags(project['repository'])
+    tags = repository.listtags(project.repository())
     tags = [t for t in tags if not t.startswith('sha-')]
     tags.sort(key=natsort_keygen(alg=ns.NUMAFTER))
     return { 'status': 'ok', 'versions': tags }
@@ -84,8 +81,7 @@ def api_listspiders():
     if not project:
         return error('project not found in configuration', status=404)
     _version = request.args.get('_version', 'latest') # TODO allow customizing latest tag
-
-    spiders = repository.listspiders(project['repository'], project_id, _version)
+    spiders = repository.listspiders(project.repository(), project_id, _version)
     if spiders is None:
         return error('project version not found in repository', status=404)
     return { 'status': 'ok', 'spiders': spiders }
@@ -93,7 +89,6 @@ def api_listspiders():
 @app.get("/listjobs.json")
 def api_listjobs():
     project_id = request.args.get('project')
-
     jobs = launcher.listjobs(project_id)
     pending = [j for j in jobs if j['state'] == 'pending']
     running = [j for j in jobs if j['state'] == 'running']

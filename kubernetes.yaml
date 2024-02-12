@@ -79,6 +79,14 @@ data:
     [project.example]
     env_secret   = spider-example-env
     repository   = ghcr.io/q-m/scrapyd-k8s-spider-example
+
+    # It is strongly recomended to set resource requests and limits on production.
+    # They can be overridden on the project and spider level.
+    [default.resources]
+    requests_cpu = 0.2
+    requests_memory = 0.2G
+    limits_cpu = 0.8
+    limits_memory = 0.5G
 ---
 apiVersion: v1
 kind: Secret

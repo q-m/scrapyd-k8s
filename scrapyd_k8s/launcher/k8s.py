@@ -38,35 +38,42 @@ class K8s:
         jobs = [self._parse_job(j) for j in jobs.items]
         return jobs
 
-    def schedule(self, repository, project, version, spider, job_id, env_config, env_secret, settings, args):
-        job_name = self._k8s_job_name(project, job_id)
+    def schedule(self, project, version, spider, job_id, settings, args):
+        job_name = self._k8s_job_name(project.id(), job_id)
         _settings = [i for k, v in native_stringify_dict(settings, keys_only=False).items() for i in ['-s', f"{k}={v}"]]
         _args = [i for k, v in native_stringify_dict(args, keys_only=False).items() for i in ['-a', f"{k}={v}"]]
         env = {
-            'SCRAPY_PROJECT': project,
+            'SCRAPY_PROJECT': project.id(),
             'SCRAPYD_SPIDER': spider,
             'SCRAPYD_JOB': job_id,
         }
         labels = {
             self.LABEL_JOB_ID: job_id,
-            self.LABEL_PROJECT: project,
+            self.LABEL_PROJECT: project.id(),
             self.LABEL_SPIDER: spider,
         }
         env_from = []
+        env_config = project.env_config()
         if env_config:
             env_from.append(kubernetes.client.V1EnvFromSource(
                 config_map_ref=kubernetes.client.V1ConfigMapEnvSource(name=env_config, optional=False)
             ))
+        env_secret = project.env_secret()
         if env_secret:
             env_from.append(kubernetes.client.V1EnvFromSource(
                 secret_ref=kubernetes.client.V1SecretEnvSource(name=env_secret, optional=False)
             ))
+        resources = project.resources(spider)
         container = kubernetes.client.V1Container(
             name=job_name,
-            image=repository + ':' + version,
+            image=project.repository() + ':' + version,
             args=['scrapy', 'crawl', spider, *_args, *_settings],
             env=[kubernetes.client.V1EnvVar(k, v) for k, v in env.items()],
-            env_from=env_from
+            env_from=env_from,
+            resources=kubernetes.client.V1ResourceRequirements(
+                requests=resources.get('requests', {}),
+                limits=resources.get('limits', {})
+            )
         )
         pod_template = kubernetes.client.V1PodTemplateSpec(
             metadata=kubernetes.client.V1ObjectMeta(name=job_name, labels=labels),
@@ -124,7 +131,7 @@ class K8s:
             'project': job.metadata.labels.get(self.LABEL_PROJECT),
             'spider': job.metadata.labels.get(self.LABEL_SPIDER)
         }
-    
+
     def _get_job(self, project, job_id):
         label = self.LABEL_JOB_ID + '=' + job_id
         r = self._k8s_batch.list_namespaced_job(namespace=self._namespace, label_selector=label)
@@ -137,7 +144,7 @@ class K8s:
             return None
 
         return job
-   
+
     def _get_pod(self, project, job_id):
         label = self.LABEL_JOB_ID + '=' + job_id
         r = self._k8s.list_namespaced_pod(namespace=self._namespace, label_selector=label)
@@ -153,7 +160,7 @@ class K8s:
 
     def _k8s_to_scrapyd_status(self, status):
         return self.STATUS_MAP.get(status, status.lower())
-    
+
     def _k8s_job_to_scrapyd_status(self, job):
         if job.status.ready:
             return 'running'
@@ -164,7 +171,7 @@ class K8s:
 
     def _k8s_job_name(self, project, job_id):
         return '-'.join(('scrapyd', project, job_id))
-    
+
     def _k8s_kill(self, pod_name, signal):
         # exec needs stream, which modified client, so use separate instance
         k8s = kubernetes.client.CoreV1Api()
@@ -176,4 +183,3 @@ class K8s:
             command=['/usr/sbin/killall5', '-' + signal]
         )
         # TODO figure out how to get return value
-        
