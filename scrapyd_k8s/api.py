@@ -2,6 +2,7 @@
 import uuid
 
 from flask import Flask, request
+from flask_basicauth import BasicAuth
 from markupsafe import escape
 from natsort import natsort_keygen, ns
 
@@ -11,6 +12,16 @@ app = Flask(__name__)
 config = Config()
 repository = (config.repository_cls())(config)
 launcher = (config.launcher_cls())(config)
+scrapyd_config = config.scrapyd()
+
+config_username = scrapyd_config.get("username")
+config_password = scrapyd_config.get("password")
+
+if not (config_username is None or config_password is None):
+    basic_auth = BasicAuth(app)
+    app.config['BASIC_AUTH_USERNAME'] = config_username
+    app.config['BASIC_AUTH_PASSWORD'] = config_password
+    app.config["BASIC_AUTH_FORCE"] = True
 
 @app.get("/")
 def home():
@@ -105,6 +116,6 @@ def error(msg, status=200):
     return { 'status': 'error', 'message': msg }, status
 
 def run():
-    host = config.scrapyd().get('bind_address', '127.0.0.1')
-    port = config.scrapyd().get('http_port', '6800')
+    host = scrapyd_config.get('bind_address', '127.0.0.1')
+    port = scrapyd_config.get('http_port', '6800')
     app.run(host=host, port=port)
