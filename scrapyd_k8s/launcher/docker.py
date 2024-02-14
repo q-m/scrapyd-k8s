@@ -1,3 +1,4 @@
+import re
 import docker
 from ..utils import native_stringify_dict
 
@@ -17,35 +18,36 @@ class Docker:
     def __init__(self, config):
         self._docker = docker.from_env()
 
-    def listjobs(self, project=None):
-        label = self.LABEL_PROJECT + ('=%s'%(project) if project else '')
+    def listjobs(self, project_id=None):
+        label = self.LABEL_PROJECT + ('=%s'%(project_id) if project_id else '')
         jobs = self._docker.containers.list(all=True, filters={ 'label': label })
         jobs = [self._parse_job(j) for j in jobs]
         return jobs
 
-    def schedule(self, repository, project, version, spider, job_id, env_config, env_secret, settings, args):
+    def schedule(self, project, version, spider, job_id, settings, args):
         _settings = [i for k, v in native_stringify_dict(settings, keys_only=False).items() for i in ['-s', f"{k}={v}"]]
         _args = [i for k, v in native_stringify_dict(args, keys_only=False).items() for i in ['-a', f"{k}={v}"]]
         env = {
-            'SCRAPY_PROJECT': project,
+            'SCRAPY_PROJECT': project.id(),
             'SCRAPYD_SPIDER': spider,
             'SCRAPYD_JOB': job_id,
         } # TODO env_source handling
+        resources = project.resources(spider)
         c = self._docker.containers.run(
-            image=repository + ':' + version,
+            image=project.repository() + ':' + version,
             command=['scrapy', 'crawl', spider, *_args, *_settings],
             environment=env,
             labels={
                 self.LABEL_JOB_ID: job_id,
-                self.LABEL_PROJECT: project,
-                self.LABEL_SPIDER: spider,
             },
-            name='_'.join(['scrapyd', project, job_id]),
-            detach=True
+            name='_'.join(['scrapyd', project.id(), job_id]),
+            detach=True,
+            mem_limit=resources.get('limits', {}).get('memory'),
+            cpu_quota=_str_to_micro(resources.get('limits', {}).get('cpu'))
         )
 
-    def cancel(self, project, job_id, signal):
-        c = self._get_container(project, job_id)
+    def cancel(self, project_id, job_id, signal):
+        c = self._get_container(project_id, job_id)
         if not c:
             return None
 
@@ -63,18 +65,28 @@ class Docker:
             'project': c.labels.get(self.LABEL_PROJECT),
             'spider': c.labels.get(self.LABEL_SPIDER)
         }
-   
-    def _get_container(self, project, job_id):
+
+    def _get_container(self, project_id, job_id):
         filters = { 'label': self.LABEL_JOB_ID + '=' + job_id }
         c = self._docker.containers.list(all=True, filters=filters)
         if not c:
             return None
         c = c[0]
 
-        if c.labels.get(self.LABEL_PROJECT) != project:
+        if c.labels.get(self.LABEL_PROJECT) != project_id:
             return None
 
         return c
 
     def _docker_to_scrapyd_status(self, status):
         return self.STATUS_MAP.get(status, status)
+
+def _str_to_micro(s):
+    """Convert str to micro, so 1 -> 1000000, 0.1m -> 100, etc."""
+    if s is None: return
+    if isinstance(s, int):
+        return s * 1_000_000
+    if isinstance(s, str):
+        if re.match(r'^[0-9.]+$', s): return int(float(s) * 1_000_000)
+        if re.match(r'^[0-9.]+m$', s): return int(float(s[0:-1]) * 1_000)
+    raise Exception('Unrecognized number format: ' + str(s))
