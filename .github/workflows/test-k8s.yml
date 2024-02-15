@@ -1,0 +1,47 @@
+name: Tests on Kubernetes
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Start minikube
+        uses: medyagh/setup-minikube@master
+
+      - name: Prepare Kubernetes environment
+        run: |
+          kubectl create secret generic example-env-secret --from-literal=FOO_1=bar
+          kubectl create configmap example-env-configmap --from-literal=FOO_2=baz
+          # already pull image so we don't have to wait for it later
+          minikube image pull ghcr.io/q-m/scrapyd-k8s-spider-example:latest
+
+      - name: Run scrapyd-k8s
+        run: |
+          cp scrapyd_k8s.sample-k8s.conf scrapyd_k8s.conf
+          python -m scrapyd_k8s &
+          while ! nc -q 1 localhost 6800 </dev/null; do sleep 1; done
+          curl http://localhost:6800/daemonstatus.json
+
+      - name: Run tests
+        run: |
+          TEST_MAX_WAIT=60 \
+          TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'` \
+          pytest -vv --color=yes test_api.py

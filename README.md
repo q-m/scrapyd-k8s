@@ -65,9 +65,8 @@ things out.
 
 ### Kubernetes
 
-1. Create the spider namespace: `kubectl create namespace scrapyd`
-2. Adapt the spider configuration in [`kubernetes.yaml`](./kubernetes.yaml) (`scrapyd_k8s.conf` in configmap)
-3. Create the resources: `kubectl create -f kubernetes.yaml`
+1. Adapt the spider configuration in [`kubernetes.yaml`](./kubernetes.yaml) (`scrapyd_k8s.conf` in configmap)
+2. Create the resources: `kubectl create -f kubernetes.yaml`
 
 You'll be able to talk to the `scrapyd-k8s` service on port `6800`.
 
@@ -134,7 +133,7 @@ curl 'http://localhost:6800/listspiders.json?project=example&_version=latest'
 ```
 
 > ```json
-> {"spiders":["quotes"],"status":"ok"}
+> {"spiders":["quotes","static"],"status":"ok"}
 > ```
 
 ```sh

@@ -72,12 +72,13 @@ data:
     repository   = scrapyd_k8s.repository.Remote
     launcher     = scrapyd_k8s.launcher.K8s
 
-    namespace    = scrapyd
+    namespace    = default
 
     # This is an example spider that should work out of the box.
-    # Adapt the spider config to your use-case, with an otherwise unused secret.
+    # Adapt the spider config to your use-case.
     [project.example]
     env_secret   = spider-example-env
+    env_config   = spider-example-env
     repository   = ghcr.io/q-m/scrapyd-k8s-spider-example
 
     # It is strongly recomended to set resource requests and limits on production.
@@ -96,6 +97,15 @@ metadata:
     app.kubernetes.io/name: spider-example
 stringData:
   FOO_API_KEY: "1234567890abcdef"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spider-example-env
+  labels:
+    app.kubernetes.io/name: spider-example
+data:
+  BAR_VALUE: "baz"
 ---
 apiVersion: v1
 kind: Service
@@ -117,20 +127,18 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: scrapyd-k8s
-  namespace: scrapyd
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: scrapyd-k8s
-  namespace: scrapyd
 rules:
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["pods/exec"]
-    verbs: ["create"]
+    verbs: ["get"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
     verbs: ["get", "list", "create", "delete"]
@@ -139,7 +147,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: scrapyd-k8s
-  namespace: scrapyd
 subjects:
   - kind: ServiceAccount
     name: scrapyd-k8s
