@@ -14,15 +14,6 @@ repository = (config.repository_cls())(config)
 launcher = (config.launcher_cls())(config)
 scrapyd_config = config.scrapyd()
 
-config_username = scrapyd_config.get("username")
-config_password = scrapyd_config.get("password")
-
-if not (config_username is None or config_password is None):
-    basic_auth = BasicAuth(app)
-    app.config['BASIC_AUTH_USERNAME'] = config_username
-    app.config['BASIC_AUTH_PASSWORD'] = config_password
-    app.config["BASIC_AUTH_FORCE"] = True
-
 @app.get("/")
 def home():
     return "<html><body><h1>scrapyd-k8s</h1></body></html>"
@@ -115,7 +106,21 @@ def api_listjobs():
 def error(msg, status=200):
     return { 'status': 'error', 'message': msg }, status
 
+def enable_authentication(config_username: str, config_password: str) -> BasicAuth:
+    basic_auth = BasicAuth(app)
+    app.config["BASIC_AUTH_USERNAME"] = config_username
+    app.config["BASIC_AUTH_PASSWORD"] = config_password
+    app.config["BASIC_AUTH_FORCE"] = True
+    return basic_auth
+
 def run():
     host = scrapyd_config.get('bind_address', '127.0.0.1')
     port = scrapyd_config.get('http_port', '6800')
+    
+    config_username = scrapyd_config.get('username')
+    config_password = scrapyd_config.get('password')
+    
+    if config_username is not None and config_password is not None:
+        basic_auth = enable_authentication(config_username, config_password)
+
     app.run(host=host, port=port)
