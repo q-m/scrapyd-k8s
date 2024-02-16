@@ -104,7 +104,7 @@ docker pull ghcr.io/q-m/scrapyd-k8s-spider-example
 
 With `scrapyd-k8s` running and setup, you can access it. Here we assume that
 it listens on `localhost:6800` (for Kubernetes, you would use
-the service name `scrapyd-k8s:6800` instead). 
+the service name `scrapyd-k8s:6800` instead).
 
 ```sh
 curl http://localhost:6800/daemonstatus.json
