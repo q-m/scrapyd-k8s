@@ -25,12 +25,12 @@ spec:
           readinessProbe:
             failureThreshold: 3
             httpGet:
-              path: /
+              path: /healthz
               port: http
           livenessProbe:
             failureThreshold: 30
             httpGet:
-              path: /
+              path: /healthz
               port: http
           resources:
             limits:

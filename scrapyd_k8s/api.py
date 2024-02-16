@@ -18,6 +18,10 @@ scrapyd_config = config.scrapyd()
 def home():
     return "<html><body><h1>scrapyd-k8s</h1></body></html>"
 
+@app.get("/healthz")
+def healthz():
+    return "OK", 200
+
 @app.get("/daemonstatus.json")
 def api_daemonstatus():
     return { "status": "ok", "spiders": 0 }
@@ -109,12 +113,15 @@ def enable_authentication(app, config_username, config_password):
     return basic_auth
 
 def run():
+    # where to listen
     host = scrapyd_config.get('bind_address', '127.0.0.1')
     port = scrapyd_config.get('http_port', '6800')
     
+    # authentication
     config_username = scrapyd_config.get('username')
     config_password = scrapyd_config.get('password')
     if config_username is not None and config_password is not None:
         enable_authentication(app, config_username, config_password)
 
+    # run server
     app.run(host=host, port=port)
