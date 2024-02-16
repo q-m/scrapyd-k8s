@@ -104,7 +104,7 @@ docker pull ghcr.io/q-m/scrapyd-k8s-spider-example
 
 With `scrapyd-k8s` running and setup, you can access it. Here we assume that
 it listens on `localhost:6800` (for Kubernetes, you would use
-the service name `scrapyd-k8s:6800` instead). If authorization is enabled, you need to send the authorization headers with every request. To use the curl commands below you can just add the option `-u "username:password"` to the curl commands. The username and password can be found (and enabled/disabled) in the config file.
+the service name `scrapyd-k8s:6800` instead). 
 
 ```sh
 curl http://localhost:6800/daemonstatus.json

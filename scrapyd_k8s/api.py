@@ -106,7 +106,7 @@ def api_listjobs():
 def error(msg, status=200):
     return { 'status': 'error', 'message': msg }, status
 
-def enable_authentication(config_username: str, config_password: str) -> BasicAuth:
+def enable_authentication(app, config_username, config_password):
     basic_auth = BasicAuth(app)
     app.config["BASIC_AUTH_USERNAME"] = config_username
     app.config["BASIC_AUTH_PASSWORD"] = config_password
@@ -119,8 +119,7 @@ def run():
     
     config_username = scrapyd_config.get('username')
     config_password = scrapyd_config.get('password')
-    
     if config_username is not None and config_password is not None:
-        basic_auth = enable_authentication(config_username, config_password)
+        enable_authentication(app, config_username, config_password)
 
     app.run(host=host, port=port)
