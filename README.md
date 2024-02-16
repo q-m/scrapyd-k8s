@@ -1,7 +1,5 @@
 # Scrapyd for Kubernetes
 
-_Very much a work in progress._
-
 Scrapyd-k8s is an application for deploying and running Scrapy spiders as
 either Docker instances or Kubernetes jobs. Its intention is to be compatible
 with [scrapyd](https://scrapyd.readthedocs.io/), but adapt to a container-based
@@ -16,7 +14,8 @@ There are some important differences, though:
   This gives good visibility within an already running cluster.
 
 * _Projects are specified in the configuration file_, which means this can not
-  be modified at run-time.
+  be modified at run-time. On the other hand, scrapyd-k8s can be restarted
+  without affecting any running spiders.
 
 At this moment, each spider job is directly linked to a Docker instance or
 Kubernetes job, and the daemon will retrieve its state by looking at those
