@@ -1,5 +1,7 @@
 import kubernetes
 import kubernetes.stream
+from signal import Signals
+from subprocess import check_output, CalledProcessError
 
 from ..utils import native_stringify_dict
 
@@ -9,18 +11,6 @@ class K8s:
     LABEL_SPIDER = 'org.scrapy.spider'
     LABEL_JOB_ID = 'org.scrapy.job_id'
 
-    # translates status to scrapyd terminology
-    STATUS_MAP = {
-        'Pending': 'pending',
-        'Waiting': 'pending',
-        'Running': 'running',
-        'Succeeded': 'finished',
-        'Completed': 'finished',
-        'Terminated': 'finished',
-        # Failed
-        # Unknown
-    }
-
     def __init__(self, config):
         self._namespace = config.scrapyd().get('namespace', 'default')
         self._pull_secret = config.scrapyd().get('pull_secret')
@@ -29,6 +19,7 @@ class K8s:
             kubernetes.config.load_incluster_config()
         except kubernetes.config.config_exception.ConfigException:
             kubernetes.config.load_kube_config()
+
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
 
@@ -79,6 +70,7 @@ class K8s:
             metadata=kubernetes.client.V1ObjectMeta(name=job_name, labels=labels),
             spec=kubernetes.client.V1PodSpec(
                 containers=[container],
+                share_process_namespace=True, # an init process for cancel
                 restart_policy='Never',
                 image_pull_secrets=[kubernetes.client.V1LocalObjectReference(s) for s in [self._pull_secret] if s]
             )
@@ -108,10 +100,8 @@ class K8s:
         elif prevstate == 'running':
             # kill pod (retry is disabled, so there should be only one pod)
             pod = self._get_pod(project, job_id)
-            if not pod:
-                # job apparently just ended, fine
-                return None
-            self._k8s_kill(pod.metadata.name, signal)
+            if pod: # if a pod has just ended, we're good already, don't kill
+                self._k8s_kill(pod.metadata.name, Signals['SIG' + signal].value)
         else:
             # not started yet, delete job
             self._k8s_batch.delete_namespaced_job(
@@ -158,28 +148,28 @@ class K8s:
 
         return pod
 
-    def _k8s_to_scrapyd_status(self, status):
-        return self.STATUS_MAP.get(status, status.lower())
-
     def _k8s_job_to_scrapyd_status(self, job):
         if job.status.ready:
             return 'running'
         elif job.status.succeeded:
             return 'finished'
-        else: # including failure modes
+        elif job.status.failed:
+            return 'finished'
+        else:
             return 'pending'
 
     def _k8s_job_name(self, project, job_id):
         return '-'.join(('scrapyd', project, job_id))
 
     def _k8s_kill(self, pod_name, signal):
-        # exec needs stream, which modified client, so use separate instance
+        # exec needs stream, which modifies client, so use separate instance
         k8s = kubernetes.client.CoreV1Api()
-        resp = kubernetes.stream(
+        resp = kubernetes.stream.stream(
             k8s.connect_get_namespaced_pod_exec,
             pod_name,
-            'default',
+            namespace=self._namespace,
             # this is a bit blunt, bit it works and is usually available
-            command=['/usr/sbin/killall5', '-' + signal]
+            command=['/usr/sbin/killall5', '-' + str(signal)],
+            stderr=True
         )
         # TODO figure out how to get return value

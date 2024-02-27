@@ -1,0 +1,61 @@
+name: Test Kubernetes manifest
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: test:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start minikube
+        uses: medyagh/setup-minikube@master
+
+      - name: Deploy to minikube
+        run: |
+          minikube image load test:latest
+          # already pull image so we don't have to wait for it later
+          minikube image pull ghcr.io/q-m/scrapyd-k8s-spider-example:latest
+          # load manifest
+          sed -i 's/\(imagePullPolicy:\s*\)\w\+/\1Never/' kubernetes.yaml
+          sed -i 's/\(image:\s*\)ghcr\.io\/q-m\/scrapyd-k8s:/\1test:/' kubernetes.yaml
+          sed -i 's/\(type:\s*\)ClusterIP/\1NodePort/' kubernetes.yaml
+          kubectl create -f kubernetes.yaml
+          # and wait for scrapyd-k8s to become ready
+          kubectl wait --for=condition=Available deploy/scrapyd-k8s --timeout=60s
+          curl --retry 10 --retry-delay 2 --retry-all-errors `minikube service scrapyd-k8s --url`/daemonstatus.json
+
+      - name: Run tests
+        run: |
+          TEST_BASE_URL=`minikube service scrapyd-k8s --url` \
+          TEST_MAX_WAIT=60 \
+          TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'` \
+          pytest -vv --color=yes test_api.py

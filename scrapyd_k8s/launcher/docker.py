@@ -38,6 +38,8 @@ class Docker:
             command=['scrapy', 'crawl', spider, *_args, *_settings],
             environment=env,
             labels={
+                self.LABEL_PROJECT: project.id(),
+                self.LABEL_SPIDER: spider,
                 self.LABEL_JOB_ID: job_id,
             },
             name='_'.join(['scrapyd', project.id(), job_id]),

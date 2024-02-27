@@ -33,7 +33,7 @@ def api_schedule():
         return error('project missing in form parameters', status=400)
     project = config.project(project_id)
     if not project:
-        return error('project not found in configuration', status=404)
+        return error('project not found in configuration', status=400)
     spider = request.form.get('spider')
     if not spider:
         return error('spider not found in form parameters', status=400)
@@ -55,7 +55,7 @@ def api_cancel():
     job_id = request.form.get('job')
     if not job_id:
         return error('job missing in form parameters', status=400)
-    signal = request.form.get('signal', 'TERM')
+    signal = request.form.get('signal', 'TERM') # TODO validate signal?
     prevstate = launcher.cancel(project_id, job_id, signal)
     if not prevstate:
         return error('job not found', status=404)
