@@ -1,3 +1,5 @@
+import os
+
 import kubernetes
 import kubernetes.stream
 from signal import Signals
@@ -22,6 +24,9 @@ class K8s:
 
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
+
+    def get_node_name(self):
+        return "%s.%s" % (os.getenv('MY_DEPLOYMENT_NAME'), os.getenv('MY_POD_NAMESPACE'))
 
     def listjobs(self, project=None):
         label = self.LABEL_PROJECT + ('=%s'%(project) if project else '')
