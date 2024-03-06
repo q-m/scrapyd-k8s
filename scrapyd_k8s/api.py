@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import uuid
 
 from flask import Flask, request, Response, jsonify
