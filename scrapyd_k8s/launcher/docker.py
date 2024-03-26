@@ -21,7 +21,11 @@ class Docker:
         self._docker = docker.from_env()
 
     def get_node_name(self):
-        return os.getenv('HOSTNAME')
+        hostname = os.getenv('HOSTNAME')
+        if hostname in [None, "", "null"]:
+            hostname = os.popen("hostname").read().strip()
+        return hostname
+
 
     def listjobs(self, project_id=None):
         label = self.LABEL_PROJECT + ('=%s'%(project_id) if project_id else '')

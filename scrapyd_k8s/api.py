@@ -14,14 +14,6 @@ repository = (config.repository_cls())(config)
 launcher = (config.launcher_cls())(config)
 scrapyd_config = config.scrapyd()
 
-# middleware that adds "node_name" to each response if it is a JSON
-@app.after_request
-def after_request(response: Response):
-    if response.is_json:
-        data = response.json
-        data["node_name"] = config.scrapyd().get("node_name", launcher.get_node_name())
-        response.data = jsonify(data).data
-    return response
 
 @app.get("/")
 def home():
@@ -134,3 +126,13 @@ def run():
 
     # run server
     app.run(host=host, port=port)
+
+
+# middleware that adds "node_name" to each response if it is a JSON
+@app.after_request
+def after_request(response: Response):
+    if response.is_json:
+        data = response.json
+        data["node_name"] = config.scrapyd().get("node_name", launcher.get_node_name())
+        response.data = jsonify(data).data
+    return response
