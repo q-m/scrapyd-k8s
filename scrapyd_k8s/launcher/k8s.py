@@ -26,11 +26,9 @@ class K8s:
         self._k8s_batch = kubernetes.client.BatchV1Api()
 
     def get_node_name(self):
-        deployment_name = os.getenv('MY_DEPLOYMENT_NAME')
-        pod_name = os.getenv('MY_POD_NAMESPACE')
-        if not deployment_name and not pod_name:
-            return "default"
-        return "%s.%s" % (os.getenv('MY_DEPLOYMENT_NAME'), os.getenv('MY_POD_NAMESPACE'))
+        deployment = os.getenv('MY_DEPLOYMENT_NAME', 'default')
+        namespace = os.getenv('MY_NAMESPACE')
+        return ".".join([n for n in [namespace, deployment] if n])
 
     def listjobs(self, project=None):
         label = self.LABEL_PROJECT + ('=%s'%(project) if project else '')

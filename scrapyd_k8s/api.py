@@ -103,6 +103,15 @@ def api_listjobs():
     # TODO perhaps remove state from jobs
     return { 'status': 'ok', 'pending': pending, 'running': running, 'finished': finished }
 
+# middleware that adds "node_name" to each response if it is a JSON
+@app.after_request
+def after_request(response: Response):
+    if response.is_json:
+        data = response.json
+        data["node_name"] = config.scrapyd().get("node_name", launcher.get_node_name())
+        response.data = jsonify(data).data
+    return response
+
 def error(msg, status=200):
     return { 'status': 'error', 'message': msg }, status
 
@@ -126,13 +135,3 @@ def run():
 
     # run server
     app.run(host=host, port=port)
-
-
-# middleware that adds "node_name" to each response if it is a JSON
-@app.after_request
-def after_request(response: Response):
-    if response.is_json:
-        data = response.json
-        data["node_name"] = config.scrapyd().get("node_name", launcher.get_node_name())
-        response.data = jsonify(data).data
-    return response

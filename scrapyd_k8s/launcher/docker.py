@@ -1,5 +1,6 @@
 import re
 import os
+import socket
 
 import docker
 from ..utils import native_stringify_dict
@@ -23,7 +24,7 @@ class Docker:
     def get_node_name(self):
         hostname = os.getenv('HOSTNAME')
         if hostname in [None, "", "null"]:
-            hostname = os.popen("hostname").read().strip()
+            hostname = socket.gethostname()
         return hostname
 
 
