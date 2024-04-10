@@ -22,9 +22,7 @@ class Docker:
         self._docker = docker.from_env()
 
     def get_node_name(self):
-        hostname = os.getenv('HOSTNAME')
-        if hostname in [None, "", "null"]:
-            hostname = socket.gethostname()
+        hostname = socket.gethostname()
         return hostname
 
 
