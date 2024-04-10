@@ -1,4 +1,7 @@
 import re
+import os
+import socket
+
 import docker
 from ..utils import native_stringify_dict
 
@@ -17,6 +20,9 @@ class Docker:
 
     def __init__(self, config):
         self._docker = docker.from_env()
+
+    def get_node_name(self):
+        return socket.gethostname()
 
     def listjobs(self, project_id=None):
         label = self.LABEL_PROJECT + ('=%s'%(project_id) if project_id else '')

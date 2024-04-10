@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import uuid
 
-from flask import Flask, request
+from flask import Flask, request, Response, jsonify
 from flask_basicauth import BasicAuth
 from markupsafe import escape
 from natsort import natsort_keygen, ns
@@ -13,6 +13,7 @@ config = Config()
 repository = (config.repository_cls())(config)
 launcher = (config.launcher_cls())(config)
 scrapyd_config = config.scrapyd()
+
 
 @app.get("/")
 def home():
@@ -101,6 +102,15 @@ def api_listjobs():
     finished = [j for j in jobs if j['state'] == 'finished']
     # TODO perhaps remove state from jobs
     return { 'status': 'ok', 'pending': pending, 'running': running, 'finished': finished }
+
+# middleware that adds "node_name" to each response if it is a JSON
+@app.after_request
+def after_request(response: Response):
+    if response.is_json:
+        data = response.json
+        data["node_name"] = config.scrapyd().get("node_name", launcher.get_node_name())
+        response.data = jsonify(data).data
+    return response
 
 def error(msg, status=200):
     return { 'status': 'error', 'message': msg }, status

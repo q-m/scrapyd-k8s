@@ -15,7 +15,6 @@ RUN_SPIDER = os.getenv('TEST_RUN_SPIDER', 'static')
 MAX_WAIT = int(os.getenv('TEST_MAX_WAIT', '6'))
 STATIC_SLEEP = float(os.getenv('TEST_STATIC_SLEEP', '2'))
 
-
 def test_root_ok():
     response = requests.get(BASE_URL)
     assert response.status_code == 200
@@ -23,28 +22,30 @@ def test_root_ok():
     assert 'scrapyd-k8s' in response.text
     assert '</html>' in response.text
 
-
 def test_healthz_ok():
     response = requests.get(BASE_URL + '/healthz')
     assert response.status_code == 200
-
 
 def test_daemonstatus_ok():
     response = requests.get(BASE_URL + '/daemonstatus.json')
     assert_response_ok(response)
     # TODO assert response.json() == { 'status': 'ok', ... }
 
-
 def test_listprojects_ok():
     response = requests.get(BASE_URL + '/listprojects.json')
     assert_response_ok(response)
-    assert response.json() == { 'status': 'ok', 'projects': AVAIL_PROJECTS }
 
+    json = response.json()
+    assert json['projects'] == AVAIL_PROJECTS
+    assert 'node_name' in json
 
 def test_listversions_ok():
     response = requests.get(BASE_URL + '/listversions.json?project=' + RUN_PROJECT)
     assert_response_ok(response)
-    assert response.json() == { 'status': 'ok', 'versions': AVAIL_VERSIONS }
+
+    json = response.json()
+    assert json['versions'] == AVAIL_VERSIONS
+    assert 'node_name' in json
 
 def test_listversions_project_missing():
     response = requests.get(BASE_URL + '/listversions.json')
@@ -54,16 +55,21 @@ def test_listversions_project_not_found():
     response = requests.get(BASE_URL + '/listversions.json?project=' + 'nonexistant')
     assert_response_error(response, 404)
 
-
 def test_listspiders_ok():
     response = requests.get(BASE_URL + '/listspiders.json?project=' + RUN_PROJECT + '&_version=' + RUN_VERSION)
     assert_response_ok(response)
-    assert response.json() == { 'status': 'ok', 'spiders': AVAIL_SPIDERS }
+
+    json = response.json()
+    assert json['spiders'] == AVAIL_SPIDERS
+    assert 'node_name' in json
 
 def test_listspiders_ok_without_version():
     response = requests.get(BASE_URL + '/listspiders.json?project=' + RUN_PROJECT)
     assert_response_ok(response)
-    assert response.json() == { 'status': 'ok', 'spiders': AVAIL_SPIDERS }
+
+    json = response.json()
+    assert json['spiders'] == AVAIL_SPIDERS
+    assert 'node_name' in json
 
 def test_listspiders_project_missing():
     response = requests.get(BASE_URL + '/listspiders.json')
@@ -76,7 +82,6 @@ def test_listspiders_project_not_found():
 def test_listspiders_version_not_found():
     response = requests.get(BASE_URL + '/listspiders.json?project=' + RUN_PROJECT + '&_version=' + 'nonexistant')
     assert_response_error(response, 404)
-
 
 def test_schedule_project_missing():
     response = requests.post(BASE_URL + '/schedule.json', data={})
@@ -93,7 +98,6 @@ def test_schedule_spider_missing():
 # scheduling a non-existing spider will try to start it, so no error
 # scheduling a non-existing project version will try to start it, so no error
 
-
 def test_cancel_project_missing():
     response = requests.post(BASE_URL + '/cancel.json', data={})
     assert_response_error(response, 400)
@@ -105,8 +109,6 @@ def test_cancel_jobid_missing():
     assert_response_error(response, 400)
 
 # TODO test cancel with invalid signal (currently returns server error, could be improved)
-
-
 def test_scenario_regular_ok():
     scenario_regular({
         'project': RUN_PROJECT, '_version': RUN_VERSION, 'spider': RUN_SPIDER,
@@ -120,7 +122,6 @@ def test_scenario_regular_ok_without_version():
     })
 
 # TODO test_scenario_cancel_scheduled_ok (needs a way to make sure a job is not running yet)
-
 def test_scenario_cancel_running_finished_ok():
     assert_listjobs()
     # schedule a new job and wait until it is running
@@ -138,7 +139,11 @@ def test_scenario_cancel_running_finished_ok():
         'project': RUN_PROJECT, 'job': jobid, 'signal': 'KILL'
     })
     assert_response_ok(response)
-    assert response.json() == { 'status': 'ok', 'prevstate': 'running' }
+
+    json = response.json()
+    assert json['prevstate'] == 'running'
+    assert 'node_name' in json
+
     # wait until the job has stopped
     listjobs_wait(jobid, 'finished')
     jobinfo = assert_listjobs(finished=jobid)
@@ -146,8 +151,10 @@ def test_scenario_cancel_running_finished_ok():
     # then cancel it again, though nothing would happen
     response = requests.post(BASE_URL + '/cancel.json', data={ 'project': RUN_PROJECT, 'job': jobid })
     assert_response_ok(response)
-    assert response.json() == { 'status': 'ok', 'prevstate': 'finished' }
 
+    json = response.json()
+    assert json['prevstate'] == 'finished'
+    assert 'node_name' in json
 
 def scenario_regular(schedule_args):
     assert_listjobs()
