@@ -31,7 +31,6 @@ def test_daemonstatus_ok():
     assert_response_ok(response)
     # TODO assert response.json() == { 'status': 'ok', ... }
 
-
 def test_listprojects_ok():
     response = requests.get(BASE_URL + '/listprojects.json')
     assert_response_ok(response)
@@ -39,7 +38,6 @@ def test_listprojects_ok():
     json = response.json()
     assert json['projects'] == AVAIL_PROJECTS
     assert 'node_name' in json
-
 
 def test_listversions_ok():
     response = requests.get(BASE_URL + '/listversions.json?project=' + RUN_PROJECT)
@@ -57,7 +55,6 @@ def test_listversions_project_not_found():
     response = requests.get(BASE_URL + '/listversions.json?project=' + 'nonexistant')
     assert_response_error(response, 404)
 
-
 def test_listspiders_ok():
     response = requests.get(BASE_URL + '/listspiders.json?project=' + RUN_PROJECT + '&_version=' + RUN_VERSION)
     assert_response_ok(response)
@@ -65,7 +62,6 @@ def test_listspiders_ok():
     json = response.json()
     assert json['spiders'] == AVAIL_SPIDERS
     assert 'node_name' in json
-
 
 def test_listspiders_ok_without_version():
     response = requests.get(BASE_URL + '/listspiders.json?project=' + RUN_PROJECT)
@@ -107,6 +103,7 @@ def test_cancel_project_missing():
     assert_response_error(response, 400)
 
 # we don't test cancelling a spider from a project not in the config file
+
 def test_cancel_jobid_missing():
     response = requests.post(BASE_URL + '/cancel.json', data={ 'project': RUN_PROJECT })
     assert_response_error(response, 400)

@@ -25,7 +25,6 @@ class Docker:
         hostname = socket.gethostname()
         return hostname
 
-
     def listjobs(self, project_id=None):
         label = self.LABEL_PROJECT + ('=%s'%(project_id) if project_id else '')
         jobs = self._docker.containers.list(all=True, filters={ 'label': label })
