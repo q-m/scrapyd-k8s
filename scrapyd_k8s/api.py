@@ -103,6 +103,21 @@ def api_listjobs():
     # TODO perhaps remove state from jobs
     return { 'status': 'ok', 'pending': pending, 'running': running, 'finished': finished }
 
+@app.post("/addversion.json")
+def api_addversion():
+    return error("Not supported, by design. If you want to add a version, "
+                 "add a Docker image to the repository.", status=501)
+
+@app.post("/delversion.json")
+def api_delversion():
+    return error("Not supported, by design. If you want to delete a version, "
+                 "remove the corresponding Docker image from the repository.", status=501)
+
+@app.post("/delproject.json")
+def api_delproject():
+    return error("Not supported, by design. If you want to delete a project, "
+                 "remove it from the configuration file.", status=501)
+
 # middleware that adds "node_name" to each response if it is a JSON
 @app.after_request
 def after_request(response: Response):
@@ -126,7 +141,7 @@ def run():
     # where to listen
     host = scrapyd_config.get('bind_address', '127.0.0.1')
     port = scrapyd_config.get('http_port', '6800')
-    
+
     # authentication
     config_username = scrapyd_config.get('username')
     config_password = scrapyd_config.get('password')

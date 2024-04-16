@@ -83,6 +83,18 @@ def test_listspiders_version_not_found():
     response = requests.get(BASE_URL + '/listspiders.json?project=' + RUN_PROJECT + '&_version=' + 'nonexistant')
     assert_response_error(response, 404)
 
+def test_addversion():
+    response = requests.post(BASE_URL + '/addversion.json')
+    assert_response_error(response, 501)
+
+def test_delversion():
+    response = requests.post(BASE_URL + '/delversion.json')
+    assert_response_error(response, 501)
+
+def test_delproject():
+    response = requests.post(BASE_URL + '/delproject.json')
+    assert_response_error(response, 501)
+
 def test_schedule_project_missing():
     response = requests.post(BASE_URL + '/schedule.json', data={})
     assert_response_error(response, 400)
