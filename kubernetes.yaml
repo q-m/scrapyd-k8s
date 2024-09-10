@@ -90,10 +90,10 @@ data:
     
     storage_provider = s3
     
-    aws_region            = 
-    aws_access_key_id     = 
-    aws_secret_access_key = 
-    aws_bucket_name       = 
+    aws_region            = <aws_region>
+    aws_access_key_id     = <aws_access_key_id>
+    aws_secret_access_key = <aws_secret_access_key>
+    aws_bucket_name       = <aws_bucket_name>
 
     namespace    = default
 
