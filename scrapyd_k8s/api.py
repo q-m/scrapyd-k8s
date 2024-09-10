@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
+import os
+import threading
 import uuid
 
 from flask import Flask, request, Response, jsonify
 from flask_basicauth import BasicAuth
+from kubernetes import client, watch
 from markupsafe import escape
 from natsort import natsort_keygen, ns
 
 from .config import Config
+from .log_handler import stream_logs, make_log_filename_for_job
 
 app = Flask(__name__)
 config = Config()
 repository = (config.repository_cls())(config)
 launcher = (config.launcher_cls())(config)
+object_storage_provider = (config.object_storage_cls())(config)
 scrapyd_config = config.scrapyd()
 
+watcher_threads = {}
 
 @app.get("/")
 def home():
@@ -137,6 +143,41 @@ def enable_authentication(app, config_username, config_password):
     app.config["BASIC_AUTH_FORCE"] = True
     return basic_auth
 
+def watch_pods(namespace):
+    num_lines_to_check = scrapyd_config.get('num_lines_to_check')
+    w = watch.Watch()
+    v1 = client.CoreV1Api()
+    for event in w.stream(v1.list_namespaced_pod, namespace=namespace):
+        pod = event['object']
+        # check the labels in the docs
+        if pod.status.phase == 'Running' and pod.metadata.labels.get("org.scrapy.job_id"):
+            thread_name = "%s_%s" % (namespace, pod.metadata.name)
+            if (thread_name in watcher_threads
+                    and watcher_threads[thread_name] is not None
+                    and watcher_threads[thread_name].is_alive()):
+                pass
+            else:
+                watcher_threads[thread_name] = threading.Thread(
+                    target=stream_logs,
+                    kwargs={
+                        'job_name': pod.metadata.name,
+                        'namespace': namespace,
+                        'num_lines_to_check': num_lines_to_check
+                    }
+                )
+                watcher_threads[thread_name].start()
+        elif pod.status.phase == 'Succeeded' and pod.metadata.labels.get("org.scrapy.job_id"):
+            log_filename = make_log_filename_for_job(pod.metadata.name)
+            if os.path.isfile(log_filename):
+                if object_storage_provider.is_local_file_uploaded(log_filename):
+                    print("file already exists")
+                else:
+                    object_storage_provider.upload_file(log_filename)
+            else:
+                print("logfile not found %s", pod.metadata.name)
+        else:
+            print("other type " + event["type"] + " " + pod.metadata.name + " - " + pod.status.phase)
+
 def run():
     # where to listen
     host = scrapyd_config.get('bind_address', '127.0.0.1')
@@ -147,6 +188,12 @@ def run():
     config_password = scrapyd_config.get('password')
     if config_username is not None and config_password is not None:
         enable_authentication(app, config_username, config_password)
+
+    pod_watcher_thread = threading.Thread(
+        target=watch_pods,
+        kwargs={'namespace': scrapyd_config.get('namespace', 'default')}
+    )
+    pod_watcher_thread.start()
 
     # run server
     app.run(host=host, port=port)

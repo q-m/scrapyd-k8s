@@ -51,6 +51,8 @@ spec:
               mountPath: /opt/app/scrapyd_k8s.conf
               readOnly: true
               subPath: scrapyd_k8s.conf
+            #- name: persistent-storage
+            #  mountPath: /data
             # Enable if your spider repository needs a pull secret
             # - name: scrapyd-k8s-pull-secret
             #   mountPath: /opt/app/.docker
@@ -59,6 +61,9 @@ spec:
         - configMap:
             name: scrapyd-k8s-config
           name: scrapyd-k8s-config
+        #- name: persistent-storage
+        #  persistentVolumeClaim:
+        #    claimName: efs-claim
         # Enable if your spider repository needs a pull secret
         # - secret:
         #     secretName: pull-secret
@@ -80,6 +85,15 @@ data:
 
     repository   = scrapyd_k8s.repository.Remote
     launcher     = scrapyd_k8s.launcher.K8s
+    
+    num_lines_to_check = 2
+    
+    storage_provider = s3
+    
+    aws_region            = 
+    aws_access_key_id     = 
+    aws_secret_access_key = 
+    aws_bucket_name       = 
 
     namespace    = default
 
@@ -106,6 +120,34 @@ metadata:
     app.kubernetes.io/name: spider-example
 stringData:
   FOO_API_KEY: "1234567890abcdef"
+#---
+#apiVersion: v1
+#kind: PersistentVolume
+#metadata:
+#  name: efs-pv
+#spec:
+#  capacity:
+#    storage: 5Gi
+#  volumeMode: Filesystem
+#  accessModes:
+#    - ReadWriteOnce
+#  storageClassName: ""
+#  persistentVolumeReclaimPolicy: Retain
+#  csi:
+#    driver: efs.csi.aws.com
+#    volumeHandle: fs-04a902f365d2d62bd
+#---
+#apiVersion: v1
+#kind: PersistentVolumeClaim
+#metadata:
+#  name: efs-claim
+#spec:
+#  accessModes:
+#    - ReadWriteOnce
+#  storageClassName: ""
+#  resources:
+#    requests:
+#      storage: 5Gi
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -144,9 +186,12 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["pods"]
-    verbs: ["get", "list"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods/exec"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
     verbs: ["get"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
