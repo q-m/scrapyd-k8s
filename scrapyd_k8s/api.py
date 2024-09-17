@@ -25,18 +25,12 @@ def healthz():
 
 @app.get("/daemonstatus.json")
 def api_daemonstatus():
-    node_name = config.scrapyd().get("node_name", launcher.get_node_name())
-    total_pending = 0
-    total_running = 0
-    total_finished = 0
-    projects = config.listprojects()
-    for project_id in projects:
-        jobs = launcher.listjobs(project_id)
-        total_pending += len([j for j in jobs if j['state'] == 'pending'])
-        total_running += len([j for j in jobs if j['state'] == 'running'])
-        total_finished += len([j for j in jobs if j['state'] == 'finished'])
+    jobs = launcher.listjobs()
+    total_pending = len([j for j in jobs if j['state'] == 'pending'])
+    total_running = len([j for j in jobs if j['state'] == 'running'])
+    total_finished = len([j for j in jobs if j['state'] == 'finished'])
     return {
-        "node_name": node_name,
+        "node_name": config.scrapyd().get("node_name", launcher.get_node_name()),
         "status": "ok",
         "pending": total_pending,
         "running": total_running,
