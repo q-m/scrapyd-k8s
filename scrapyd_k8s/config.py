@@ -21,6 +21,11 @@ class Config:
         pkg, cls = repo.rsplit('.', 1)
         return getattr(import_module(pkg), cls)
 
+    def object_storage_cls(self):
+        repo = self._config['scrapyd'].get('object_storage_provider', 'scrapyd_k8s.object_storage.LibcloudObjectStorage')
+        pkg, cls = repo.rsplit('.', 1)
+        return getattr(import_module(pkg), cls)
+
     def listprojects(self):
         return self._projects
 

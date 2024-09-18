@@ -3,3 +3,6 @@ kubernetes>=27.2.0 # introduction of suspend in jobspec
 flask>=2.0.0
 natsort>=8.0.0
 Flask-BasicAuth>=0.2.0
+MarkupSafe>=2.1.5
+apache-libcloud>=3.8.0
+requests>=2.31.0
