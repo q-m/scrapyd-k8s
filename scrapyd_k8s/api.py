@@ -25,7 +25,7 @@ def healthz():
 
 @app.get("/daemonstatus.json")
 def api_daemonstatus():
-    jobs = launcher.listjobs()
+    jobs = list(launcher.listjobs())
     return {
         "node_name": config.scrapyd().get("node_name", launcher.get_node_name()),
         "status": "ok",
