@@ -3,7 +3,7 @@ import os
 import socket
 
 import docker
-from ..utils import native_stringify_dict
+from ..utils import format_iso_date_string, native_stringify_dict
 
 class Docker:
 
@@ -67,11 +67,13 @@ class Docker:
         return prevstate
 
     def _parse_job(self, c):
+        state = self._docker_to_scrapyd_status(c.status)
         return {
             'id': c.labels.get(self.LABEL_JOB_ID),
-            'state': self._docker_to_scrapyd_status(c.status),
+            'state': state,
             'project': c.labels.get(self.LABEL_PROJECT),
-            'spider': c.labels.get(self.LABEL_SPIDER)
+            'spider': c.labels.get(self.LABEL_SPIDER),
+            'start_time': format_iso_date_string(c.attrs['State']['StartedAt']) if state in ['running', 'finished'] else None,
         }
 
     def _get_container(self, project_id, job_id):
