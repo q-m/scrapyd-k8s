@@ -4,7 +4,7 @@ import kubernetes
 import kubernetes.stream
 from signal import Signals
 
-from ..utils import native_stringify_dict
+from ..utils import format_datetime_object, native_stringify_dict
 from scrapyd_k8s.joblogs import joblogs_init
 
 class K8s:
@@ -125,11 +125,13 @@ class K8s:
         joblogs_init(config)
 
     def _parse_job(self, job):
+        state = self._k8s_job_to_scrapyd_status(job)
         return {
             'id': job.metadata.labels.get(self.LABEL_JOB_ID),
-            'state': self._k8s_job_to_scrapyd_status(job),
+            'state': state,
             'project': job.metadata.labels.get(self.LABEL_PROJECT),
-            'spider': job.metadata.labels.get(self.LABEL_SPIDER)
+            'spider': job.metadata.labels.get(self.LABEL_SPIDER),
+            'start_time': format_datetime_object(job.status.start_time) if state in ['running', 'finished'] else None,
         }
 
     def _get_job(self, project, job_id):

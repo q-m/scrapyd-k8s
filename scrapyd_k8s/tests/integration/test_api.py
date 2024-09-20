@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
+from datetime import datetime
 import os
-import pytest
 import requests
 import time
-
 
 BASE_URL = os.getenv('TEST_BASE_URL', 'http://localhost:6800')
 AVAIL_PROJECTS = os.getenv('TEST_AVAILABLE_PROJECTS', 'example').split(',')
@@ -159,6 +158,8 @@ def test_scenario_cancel_running_finished_ok():
     # wait until the job has stopped
     listjobs_wait(jobid, 'finished')
     jobinfo = assert_listjobs(finished=jobid)
+    start_time = jobinfo.pop('start_time')
+    assert start_time and datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
     assert jobinfo == { 'id': jobid, 'project': RUN_PROJECT, 'spider': RUN_SPIDER, 'state': 'finished' }
     # then cancel it again, though nothing would happen
     response = requests.post(BASE_URL + '/cancel.json', data={ 'project': RUN_PROJECT, 'job': jobid })
@@ -178,11 +179,15 @@ def scenario_regular(schedule_args):
     # wait until the job is running
     listjobs_wait(jobid, 'running')
     jobinfo = assert_listjobs(running=jobid)
+    start_time = jobinfo.pop('start_time')
+    assert start_time and datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
     assert jobinfo == { 'id': jobid, 'project': RUN_PROJECT, 'spider': RUN_SPIDER, 'state': 'running' }
     # wait until the job has finished
     listjobs_wait(jobid, 'finished')
     # check listjobs output
     jobinfo = assert_listjobs(finished=jobid)
+    start_time = jobinfo.pop('start_time')
+    assert start_time and datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
     assert jobinfo == { 'id': jobid, 'project': RUN_PROJECT, 'spider': RUN_SPIDER, 'state': 'finished' }
 
 def assert_response_ok(response):

@@ -1,3 +1,8 @@
+from datetime import datetime
+
+
+TIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
+
 def _to_native_str(text, encoding="utf-8", errors="strict"):
     if isinstance(text, str):
         return text
@@ -26,3 +31,9 @@ def native_stringify_dict(dct_or_tuples, encoding="utf-8", keys_only=True):
                 v = _to_native_str(v, encoding)
         d[k] = v
     return d
+
+def format_iso_date_string(date_string):
+    return datetime.fromisoformat(date_string).strftime(TIME_FORMAT)
+
+def format_datetime_object(datetime_obj):
+    return datetime_obj.strftime(TIME_FORMAT)
