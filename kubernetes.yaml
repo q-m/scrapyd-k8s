@@ -51,7 +51,7 @@ spec:
               mountPath: /opt/app/scrapyd_k8s.conf
               readOnly: true
               subPath: scrapyd_k8s.conf
-            #- name: persistent-storage
+            #- name: joblogs
             #  mountPath: /data
             # Enable if your spider repository needs a pull secret
             # - name: scrapyd-k8s-pull-secret
@@ -61,7 +61,7 @@ spec:
         - configMap:
             name: scrapyd-k8s-config
           name: scrapyd-k8s-config
-        #- name: persistent-storage
+        #- name: joblogs
         #  persistentVolumeClaim:
         #    claimName: efs-claim
         # Enable if your spider repository needs a pull secret
@@ -86,15 +86,6 @@ data:
     repository   = scrapyd_k8s.repository.Remote
     launcher     = scrapyd_k8s.launcher.K8s
     
-    num_lines_to_check = 2
-    
-    storage_provider = s3
-    
-    aws_region            = <aws_region>
-    aws_access_key_id     = <aws_access_key_id>
-    aws_secret_access_key = <aws_secret_access_key>
-    aws_bucket_name       = <aws_bucket_name>
-
     namespace    = default
 
     # This is an example spider that should work out of the box.
@@ -124,27 +115,22 @@ stringData:
 #apiVersion: v1
 #kind: PersistentVolume
 #metadata:
-#  name: efs-pv
+#  name: pv-volume
 #spec:
 #  capacity:
 #    storage: 5Gi
-#  volumeMode: Filesystem
 #  accessModes:
 #    - ReadWriteOnce
-#  storageClassName: ""
-#  persistentVolumeReclaimPolicy: Retain
-#  csi:
-#    driver: efs.csi.aws.com
-#    volumeHandle: fs-04a902f365d2d62bd
+#  hostPath:
+#    path: "/mnt/data"
 #---
 #apiVersion: v1
 #kind: PersistentVolumeClaim
 #metadata:
-#  name: efs-claim
+#  name: pv-claim
 #spec:
 #  accessModes:
 #    - ReadWriteOnce
-#  storageClassName: ""
 #  resources:
 #    requests:
 #      storage: 5Gi

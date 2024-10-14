@@ -21,10 +21,13 @@ class Config:
         pkg, cls = repo.rsplit('.', 1)
         return getattr(import_module(pkg), cls)
 
-    def object_storage_cls(self):
-        repo = self._config['scrapyd'].get('object_storage_provider', 'scrapyd_k8s.object_storage.LibcloudObjectStorage')
-        pkg, cls = repo.rsplit('.', 1)
-        return getattr(import_module(pkg), cls)
+    def joblogs(self):
+        return self._config['joblogs']
+
+    def joblogs_provider_args(self, provider):
+        if not self._config.has_section('joblogs.%s' % provider):
+            return None
+        return self._config['joblogs.%s' % provider]
 
     def listprojects(self):
         return self._projects
@@ -32,6 +35,9 @@ class Config:
     def project(self, project):
         if project in self._projects:
             return ProjectConfig(self._config, project, self._config['project.' + project])
+
+    def get_namespace(self):
+        return self.scrapyd().get('namespace', 'default')
 
 class ProjectConfig:
     def __init__(self, config, projectid, projectconfig):

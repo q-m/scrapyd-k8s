@@ -1,5 +1,4 @@
 import re
-import os
 import socket
 
 import docker
@@ -65,6 +64,10 @@ class Docker:
         elif c.status == 'running':
             c.kill(signal='SIG' + signal)
         return prevstate
+
+    def enable_joblogs(self, config):
+        # Do nothing, since joblogs is not supported on Docker
+        pass
 
     def _parse_job(self, c):
         return {

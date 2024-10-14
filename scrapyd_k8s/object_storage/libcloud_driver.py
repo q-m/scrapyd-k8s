@@ -1,4 +1,7 @@
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 from libcloud.storage.types import ObjectError, ContainerDoesNotExistError, ObjectDoesNotExistError, InvalidContainerNameError
 from libcloud.storage.providers import get_driver
@@ -6,41 +9,71 @@ from libcloud.storage.providers import get_driver
 class LibcloudObjectStorage:
 
     def __init__(self, config):
-        self._region = config.scrapyd().get('aws_region')
-        self._access_key_id = config.scrapyd().get('aws_access_key_id')
-        self._secret_access_key = config.scrapyd().get('aws_secret_access_key')
-        self._container_name = config.scrapyd().get('aws_bucket_name')
-        self._storage_provider = config.scrapyd().get('storage_provider')
+        self._storage_provider = config.joblogs().get('storage_provider')
+        if self._storage_provider is None:
+            logger.error('Storage provider is not defined in the configuration.')
+            raise ValueError('Storage provider is not defined')
 
-        if self._region is None or self._access_key_id is None or self._secret_access_key is None:
-            raise ValueError('AWS credentials not set')
+        self._container_name = config.joblogs().get('container_name')
         if self._container_name is None:
-            raise ValueError('Bucket name not set')
+            logger.error('Container name is not set in the configuration.')
+            raise ValueError('Container name is not set')
+
+        args_envs = config.joblogs_provider_args(self._storage_provider)
+        args = {}
+        for arg, env in args_envs.items():
+            env_value = os.getenv(env)
+            if env_value is None:
+                logger.error(f"Environment variable '{env}' for argument '{arg}' is not set.")
+                raise ValueError(f"Environment variable '{env}' for argument '{arg}' is not set.")
+            args[arg] = env_value
 
         driver_class = get_driver(self._storage_provider)
-        self.driver = driver_class(self._access_key_id, self._secret_access_key, region=self._region)
+        print("CLOUD CREDENTIALS")
+        print(args)
+        try:
+            self.driver = driver_class(**args)
+            logger.info(f"Initialized driver for storage provider '{self._storage_provider}'.")
+        except Exception as e:
+            logger.exception(f"Failed to initialize driver for storage provider '{self._storage_provider}'.")
+            raise
 
     def upload_file(self, local_path: str):
         object_name = os.path.basename(local_path)
-        container = self.driver.get_container(container_name=self._container_name)
-        file_path = local_path
         try:
-            self.driver.upload_object(file_path, container, object_name, extra=None, verify_hash=True, headers=None)
-        except ObjectError as e:
-            print(f"Error uploading the file '{object_name}': {e}")
+            container = self.driver.get_container(container_name=self._container_name)
+            self.driver.upload_object(
+                local_path,
+                container,
+                object_name,
+                extra=None,
+                verify_hash=True,
+                headers=None
+            )
+            logger.info(f"Successfully uploaded '{object_name}' to container '{self._container_name}'.")
+        except (ObjectError, ContainerDoesNotExistError, InvalidContainerNameError) as e:
+            logger.exception(f"Error uploading the file '{object_name}': {e}")
+        except Exception as e:
+            logger.exception(f"An unexpected error occurred while uploading '{object_name}': {e}")
 
-    def is_local_file_uploaded(self, local_path: str):
+    def is_local_file_uploaded(self, local_path: str) -> bool:
         object_name = os.path.basename(local_path)
-        object_from_storage = None
         try:
-            object_from_storage = self.driver.get_object(container_name=self._container_name, object_name=object_name)
-            if object_from_storage is not None:
-                return True
+            self.driver.get_object(
+                container_name=self._container_name,
+                object_name=object_name
+            )
+            logger.debug(f"Object '{object_name}' exists in container '{self._container_name}'.")
+            return True
         except ObjectDoesNotExistError:
+            logger.debug(f"Object '{object_name}' does not exist in container '{self._container_name}'.")
             return False
-        except ContainerDoesNotExistError as e:
-            print(f"Container with the name '{self._container_name}' does not exist in the cloud storage")
-        except InvalidContainerNameError as e:
-            print(f"Invalid container name '{self._container_name}'")
-        finally:
+        except ContainerDoesNotExistError:
+            logger.error(f"Container '{self._container_name}' does not exist in the cloud storage.")
+            return False
+        except InvalidContainerNameError:
+            logger.error(f"Invalid container name '{self._container_name}'.")
+            return False
+        except Exception as e:
+            logger.exception(f"An unexpected error occurred while checking for object '{object_name}': {e}")
             return False
