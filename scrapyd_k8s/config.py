@@ -22,7 +22,10 @@ class Config:
         return getattr(import_module(pkg), cls)
 
     def joblogs(self):
-        return self._config['joblogs']
+        if self._config.has_section('joblogs'):
+            return self._config['joblogs']
+        else:
+            return {}
 
     def joblogs_provider_args(self, provider):
         if not self._config.has_section('joblogs.%s' % provider):

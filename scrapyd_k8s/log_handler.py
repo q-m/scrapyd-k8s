@@ -39,7 +39,6 @@ def get_last_n_lines(file_path, num_lines):
             lines = data.decode('utf-8', errors='replace').splitlines()
             # Return the last `num_lines`
             result = lines[-num_lines:]
-            print("LINES FOUND", result)
             return result
     except FileNotFoundError:
         logger.warning(f"File not found: {file_path}")
@@ -150,12 +149,12 @@ def watch_pods(config):
 
 def joblogs_init(config):
     joblogs_config = config.joblogs()
-    if joblogs_config.get('storage_provider') is not None:
+    if joblogs_config and joblogs_config.get('storage_provider') is not None:
         pod_watcher_thread = threading.Thread(
             target=watch_pods,
             kwargs={'config': config}
         )
-        pod_watcher_thread.daemon = True  # Optional: make thread a daemon
+        pod_watcher_thread.daemon = True
         pod_watcher_thread.start()
         logger.info("Started pod watcher thread for job logs.")
     else:
