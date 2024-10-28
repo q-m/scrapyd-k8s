@@ -111,6 +111,7 @@ class LibcloudObjectStorage:
                 raise ValueError(f"Environment variable '{env_var}' is not set for argument '{arg_name}'.")
 
         result = self.VARIABLE_PATTERN.sub(replace_var, value)
+        result = result.replace(r'\${', '${')
         return result
 
     def upload_file(self, local_path: str):
