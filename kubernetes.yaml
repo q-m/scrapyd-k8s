@@ -63,7 +63,7 @@ spec:
           name: scrapyd-k8s-config
         #- name: joblogs
         #  persistentVolumeClaim:
-        #    claimName: efs-claim
+        #    claimName: pv-claim
         # Enable if your spider repository needs a pull secret
         # - secret:
         #     secretName: pull-secret

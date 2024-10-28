@@ -25,12 +25,12 @@ class Config:
         if self._config.has_section('joblogs'):
             return self._config['joblogs']
         else:
-            return {}
-
-    def joblogs_provider_args(self, provider):
-        if not self._config.has_section('joblogs.%s' % provider):
             return None
-        return self._config['joblogs.%s' % provider]
+
+    def joblogs_storage(self, provider):
+        if not self._config.has_section('joblogs.storage.%s' % provider):
+            return None
+        return self._config['joblogs.storage.%s' % provider]
 
     def listprojects(self):
         return self._projects
@@ -39,7 +39,7 @@ class Config:
         if project in self._projects:
             return ProjectConfig(self._config, project, self._config['project.' + project])
 
-    def get_namespace(self):
+    def namespace(self):
         return self.scrapyd().get('namespace', 'default')
 
 class ProjectConfig:

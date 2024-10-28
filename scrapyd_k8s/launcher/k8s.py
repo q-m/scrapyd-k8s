@@ -3,10 +3,9 @@ import os
 import kubernetes
 import kubernetes.stream
 from signal import Signals
-from subprocess import check_output, CalledProcessError
 
 from ..utils import native_stringify_dict
-from ..log_handler import joblogs_init
+from scrapyd_k8s.joblogs import joblogs_init
 
 class K8s:
 
