@@ -16,6 +16,8 @@ class KubernetesJobLogHandler:
 
     Attributes
     ----------
+    DEFAULT_BLOCK_SIZE : int
+        Default size (in bytes) of blocks to read when retrieving the last N lines from a file.
     config : object
         Configuration object containing settings for job logs and storage.
     watcher_threads : dict
@@ -44,6 +46,8 @@ class KubernetesJobLogHandler:
     watch_pods():
         Watches Kubernetes pods and handles events such as starting log streaming or uploading logs.
     """
+    # The value was chosen to provide a balance between memory usage and the number of I/O operations
+    DEFAULT_BLOCK_SIZE = 6144
 
     def __init__(self, config):
         """
@@ -100,7 +104,7 @@ class KubernetesJobLogHandler:
                 # Move to the end of the file
                 f.seek(0, os.SEEK_END)
                 file_size = f.tell()
-                block_size = 6144
+                block_size = self.DEFAULT_BLOCK_SIZE
                 data = b''
                 remaining_lines = num_lines
                 while remaining_lines > 0 and file_size > 0:
@@ -126,7 +130,7 @@ class KubernetesJobLogHandler:
             logger.warning(f"File not found: {file_path}")
             return []
 
-    def concatenate_and_delete_files(self, main_file_path, temp_file_path, block_size=6144):
+    def concatenate_and_delete_files(self, main_file_path, temp_file_path, block_size=DEFAULT_BLOCK_SIZE):
         """
         Concatenates a temporary file to the main log file and deletes the temporary file.
 

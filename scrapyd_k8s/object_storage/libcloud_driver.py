@@ -186,4 +186,3 @@ class LibcloudObjectStorage:
         except Exception as e:
             logger.exception(f"An unexpected error occurred while checking for object '{object_name}': {e}")
             return False
-        
