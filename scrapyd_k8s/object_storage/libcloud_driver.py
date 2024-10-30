@@ -114,7 +114,7 @@ class LibcloudObjectStorage:
         result = result.replace(r'\${', '${')
         return result
 
-    def upload_file(self, local_path: str):
+    def upload_file(self, local_path):
         """
         Uploads a file to the object storage container.
 
@@ -148,7 +148,7 @@ class LibcloudObjectStorage:
         except Exception as e:
             logger.exception(f"An unexpected error occurred while uploading '{object_name}': {e}")
 
-    def object_exists(self, local_path: str) -> bool:
+    def object_exists(self, local_path):
         """
         Checks if an object exists in the object storage container.
 
