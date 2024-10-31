@@ -3,9 +3,9 @@ import os
 import kubernetes
 import kubernetes.stream
 from signal import Signals
-from subprocess import check_output, CalledProcessError
 
 from ..utils import native_stringify_dict
+from scrapyd_k8s.joblogs import joblogs_init
 
 class K8s:
 
@@ -120,6 +120,9 @@ class K8s:
                 )
             )
         return prevstate
+
+    def enable_joblogs(self, config):
+        joblogs_init(config)
 
     def _parse_job(self, job):
         return {

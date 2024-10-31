@@ -21,12 +21,26 @@ class Config:
         pkg, cls = repo.rsplit('.', 1)
         return getattr(import_module(pkg), cls)
 
+    def joblogs(self):
+        if self._config.has_section('joblogs'):
+            return self._config['joblogs']
+        else:
+            return None
+
+    def joblogs_storage(self, provider):
+        if not self._config.has_section('joblogs.storage.%s' % provider):
+            return None
+        return self._config['joblogs.storage.%s' % provider]
+
     def listprojects(self):
         return self._projects
 
     def project(self, project):
         if project in self._projects:
             return ProjectConfig(self._config, project, self._config['project.' + project])
+
+    def namespace(self):
+        return self.scrapyd().get('namespace', 'default')
 
 class ProjectConfig:
     def __init__(self, config, projectid, projectconfig):

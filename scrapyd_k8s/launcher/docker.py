@@ -1,9 +1,11 @@
 import re
-import os
 import socket
+import logging
 
 import docker
 from ..utils import native_stringify_dict
+
+logger = logging.getLogger(__name__)
 
 class Docker:
 
@@ -65,6 +67,9 @@ class Docker:
         elif c.status == 'running':
             c.kill(signal='SIG' + signal)
         return prevstate
+
+    def enable_joblogs(self, config):
+        logger.warning("Job logs are not supported when using the Docker launcher.")
 
     def _parse_job(self, c):
         return {

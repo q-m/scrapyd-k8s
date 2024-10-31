@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import uuid
+import logging
 
 from flask import Flask, request, Response, jsonify
 from flask_basicauth import BasicAuth
-from markupsafe import escape
 from natsort import natsort_keygen, ns
 
 from .config import Config
@@ -13,7 +13,7 @@ config = Config()
 repository = (config.repository_cls())(config)
 launcher = (config.launcher_cls())(config)
 scrapyd_config = config.scrapyd()
-
+logger = logging.getLogger(__name__)
 
 @app.get("/")
 def home():
@@ -154,6 +154,12 @@ def run():
     config_password = scrapyd_config.get('password')
     if config_username is not None and config_password is not None:
         enable_authentication(app, config_username, config_password)
+
+    if config.joblogs() is not None:
+        launcher.enable_joblogs(config)
+        logger.info("Job logs handling enabled.")
+    else:
+        logger.debug("Job logs handling not enabled; 'joblogs' configuration section is missing.")
 
     # run server
     app.run(host=host, port=port)
