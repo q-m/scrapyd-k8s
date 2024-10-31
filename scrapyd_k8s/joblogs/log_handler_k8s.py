@@ -156,8 +156,8 @@ class KubernetesJobLogHandler:
                     main_file.write(block_data)
             os.remove(temp_file_path)
             logger.debug(f"Concatenated '{temp_file_path}' into '{main_file_path}' and deleted temporary file.")
-        except Exception as e:
-            logger.exception(f"Error concatenating files '{main_file_path}' and '{temp_file_path}': {e}")
+        except (IOError, OSError) as e:
+            logger.error(f"Failed to concatenate and delete files for job: {e}")
 
     def make_log_filename_for_job(self, job_name):
         """
@@ -175,14 +175,13 @@ class KubernetesJobLogHandler:
         """
         if self.pod_tmp_mapping.get(job_name) is not None:
             return self.pod_tmp_mapping[job_name]
-        else:
-            temp_dir = tempfile.gettempdir()
-            app_temp_dir = os.path.join(temp_dir, 'job_logs')
-            os.makedirs(app_temp_dir, exist_ok=True)
-            fd, path = tempfile.mkstemp(prefix=f"{job_name}_logs_", suffix=".txt", dir=app_temp_dir)
-            os.close(fd)
-            self.pod_tmp_mapping[job_name] = path
-            return path
+        temp_dir = tempfile.gettempdir()
+        app_temp_dir = os.path.join(temp_dir, 'job_logs')
+        os.makedirs(app_temp_dir, exist_ok=True)
+        fd, path = tempfile.mkstemp(prefix=f"{job_name}_logs_", suffix=".txt", dir=app_temp_dir)
+        os.close(fd)
+        self.pod_tmp_mapping[job_name] = path
+        return path
 
     def stream_logs(self, job_name):
         """

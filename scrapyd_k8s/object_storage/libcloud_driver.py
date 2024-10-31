@@ -55,13 +55,13 @@ class LibcloudObjectStorage:
         """
         self._storage_provider = config.joblogs().get('storage_provider')
         if self._storage_provider is None:
-            logger.error('Storage provider is not defined in the configuration.')
-            raise ValueError('Storage provider is not defined')
+            logger.error("Storage provider is not defined in the configuration.")
+            raise ValueError("Storage provider is not defined")
 
         self._container_name = config.joblogs().get('container_name')
         if self._container_name is None:
-            logger.error('Container name is not set in the configuration.')
-            raise ValueError('Container name is not set')
+            logger.error("Container name is not set in the configuration.")
+            raise ValueError("Container name is not set")
 
         args_envs = config.joblogs_storage(self._storage_provider)
         args = {}
@@ -176,13 +176,10 @@ class LibcloudObjectStorage:
             return True
         except ObjectDoesNotExistError:
             logger.debug(f"Object '{object_name}' does not exist in container '{self._container_name}'.")
-            return False
         except ContainerDoesNotExistError:
             logger.error(f"Container '{self._container_name}' does not exist in the cloud storage.")
-            return False
         except InvalidContainerNameError:
             logger.error(f"Invalid container name '{self._container_name}'.")
-            return False
         except Exception as e:
             logger.exception(f"An unexpected error occurred while checking for object '{object_name}': {e}")
-            return False
+        return False
