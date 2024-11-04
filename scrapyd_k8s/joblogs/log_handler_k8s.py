@@ -252,6 +252,7 @@ class KubernetesJobLogHandler:
                 pod = event['object']
                 if pod.metadata.labels.get("org.scrapy.job_id"):
                     job_id = pod.metadata.labels.get("org.scrapy.job_id")
+                    print(f"JOB ID: {job_id}")
                     pod_name = pod.metadata.name
                     thread_name = f"{self.namespace}_{pod_name}"
                     if pod.status.phase == 'Running':
@@ -268,7 +269,7 @@ class KubernetesJobLogHandler:
                     elif pod.status.phase in ['Succeeded', 'Failed']:
                         log_filename = self.pod_tmp_mapping.get(pod_name)
                         if log_filename is not None and os.path.isfile(log_filename) and os.path.getsize(log_filename) > 0:
-                            if self.object_storage_provider.object_exists(log_filename):
+                            if self.object_storage_provider.object_exists(job_id):
                                 logger.info(f"Log file for job '{job_id}' already exists in storage.")
                             else:
                                 self.object_storage_provider.upload_file(log_filename)
