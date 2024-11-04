@@ -252,7 +252,6 @@ class KubernetesJobLogHandler:
                 pod = event['object']
                 if pod.metadata.labels.get("org.scrapy.job_id"):
                     job_id = pod.metadata.labels.get("org.scrapy.job_id")
-                    print(f"JOB ID: {job_id}")
                     pod_name = pod.metadata.name
                     thread_name = f"{self.namespace}_{pod_name}"
                     if pod.status.phase == 'Running':
