@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 from libcloud.storage.types import (
     ObjectError,
     ContainerDoesNotExistError,
-    ObjectDoesNotExistError,
     InvalidContainerNameError,
 )
 from libcloud.storage.providers import get_driver
@@ -148,38 +147,35 @@ class LibcloudObjectStorage:
         except Exception as e:
             logger.exception(f"An unexpected error occurred while uploading '{object_name}': {e}")
 
-    def object_exists(self, local_path):
+    def object_exists(self, prefix):
         """
-        Checks if an object exists in the object storage container.
+        Checks if any object exists in the container that starts with the given prefix.
 
         Parameters
         ----------
-        local_path : str
-            The local file path corresponding to the object name.
+        prefix : str
+            The prefix to match object names against.
 
         Returns
         -------
         bool
-            True if the object exists, False otherwise.
+            True if at least one object with the given prefix exists, False otherwise.
 
         Logs
         ----
         Logs information about the existence check or errors encountered.
         """
-        object_name = os.path.basename(local_path)
         try:
-            self.driver.get_object(
-                container_name=self._container_name,
-                object_name=object_name
-            )
-            logger.debug(f"Object '{object_name}' exists in container '{self._container_name}'.")
-            return True
-        except ObjectDoesNotExistError:
-            logger.debug(f"Object '{object_name}' does not exist in container '{self._container_name}'.")
+            objects = self.driver.list_container_objects(container=self._container_name, prefix=prefix)
+            if objects:
+                logger.debug(f"At least one object with prefix '{prefix}' exists in container '{self._container_name}'.")
+                return True
+            else:
+                logger.debug(f"No objects with prefix '{prefix}' found in container '{self._container_name}'.")
         except ContainerDoesNotExistError:
             logger.error(f"Container '{self._container_name}' does not exist in the cloud storage.")
         except InvalidContainerNameError:
             logger.error(f"Invalid container name '{self._container_name}'.")
         except Exception as e:
-            logger.exception(f"An unexpected error occurred while checking for object '{object_name}': {e}")
+            logger.exception(f"An unexpected error occurred while listing objects with prefix '{prefix}': {e}")
         return False
