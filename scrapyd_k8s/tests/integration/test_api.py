@@ -161,7 +161,7 @@ def test_scenario_cancel_running_finished_ok():
     jobinfo = assert_listjobs(finished=jobid)
     start_time, end_time = jobinfo.pop('start_time'), jobinfo.pop('end_time')
     assert datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
-    assert datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S.%f') if WITH_K8S else end_time is None
+    assert end_time is None
     assert jobinfo == { 'id': jobid, 'project': RUN_PROJECT, 'spider': RUN_SPIDER, 'state': 'finished' }
     # then cancel it again, though nothing would happen
     response = requests.post(BASE_URL + '/cancel.json', data={ 'project': RUN_PROJECT, 'job': jobid })

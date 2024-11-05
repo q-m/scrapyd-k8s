@@ -132,7 +132,7 @@ class K8s:
             'project': job.metadata.labels.get(self.LABEL_PROJECT),
             'spider': job.metadata.labels.get(self.LABEL_SPIDER),
             'start_time': format_datetime_object(job.status.start_time) if state in ['running', 'finished'] else None,
-            'end_time': format_datetime_object(job.status.completion_time) if state == 'finished' else None,
+            'end_time': format_datetime_object(job.status.completion_time) if job.status.completion_time and state == 'finished' else None,
         }
 
     def _get_job(self, project, job_id):
