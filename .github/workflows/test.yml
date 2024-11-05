@@ -106,6 +106,7 @@ jobs:
 
       - name: Run tests
         run: |
+          TEST_WITH_K8S=1 \
           TEST_BASE_URL=`minikube service scrapyd-k8s --url` \
           TEST_MAX_WAIT=60 \
           TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'` \
