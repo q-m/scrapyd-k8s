@@ -149,9 +149,9 @@ curl http://localhost:6800/listjobs.json
 ```
 ```json
 {
-  "finished":[],
+  "finished":[{"id":"fbjffo6tz5al5qjft0zrv0t7b0vzccxx","project":"example","spider":"static","state":"finished", "start_time":"2012-09-12 10:10:00.000000", "end_time":"2012-09-12 10:10:00.000000"}], // End time will only be available for the k8s launcher, for docker it will always be None
   "pending":[],
-  "running":[{"id":"e9b81fccbec211eeb3b109f30f136c01","project":"example","spider":"quotes","state":"running", "start_time": "2012-09-12 10:14:03.594664"}],
+  "running":[{"id":"e9b81fccbec211eeb3b109f30f136c01","project":"example","spider":"quotes","state":"running", "start_time":"2012-09-12 10:14:03.594664", "end_time":"None"}],
   "status":"ok"
 }
 ```

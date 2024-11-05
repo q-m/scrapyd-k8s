@@ -13,6 +13,7 @@ RUN_VERSION = os.getenv('TEST_RUN_VERSION', 'latest')
 RUN_SPIDER = os.getenv('TEST_RUN_SPIDER', 'static')
 MAX_WAIT = int(os.getenv('TEST_MAX_WAIT', '6'))
 STATIC_SLEEP = float(os.getenv('TEST_STATIC_SLEEP', '2'))
+WITH_K8S = bool(os.getenv('TEST_WITH_K8S'))
 
 def test_root_ok():
     response = requests.get(BASE_URL)
@@ -158,8 +159,9 @@ def test_scenario_cancel_running_finished_ok():
     # wait until the job has stopped
     listjobs_wait(jobid, 'finished')
     jobinfo = assert_listjobs(finished=jobid)
-    start_time = jobinfo.pop('start_time')
-    assert start_time and datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
+    start_time, end_time = jobinfo.pop('start_time'), jobinfo.pop('end_time')
+    assert datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
+    assert datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S.%f') if WITH_K8S else end_time is None
     assert jobinfo == { 'id': jobid, 'project': RUN_PROJECT, 'spider': RUN_SPIDER, 'state': 'finished' }
     # then cancel it again, though nothing would happen
     response = requests.post(BASE_URL + '/cancel.json', data={ 'project': RUN_PROJECT, 'job': jobid })
@@ -179,15 +181,17 @@ def scenario_regular(schedule_args):
     # wait until the job is running
     listjobs_wait(jobid, 'running')
     jobinfo = assert_listjobs(running=jobid)
-    start_time = jobinfo.pop('start_time')
-    assert start_time and datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
+    start_time, end_time = jobinfo.pop('start_time'), jobinfo.pop('end_time')
+    assert datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
+    assert end_time is None
     assert jobinfo == { 'id': jobid, 'project': RUN_PROJECT, 'spider': RUN_SPIDER, 'state': 'running' }
     # wait until the job has finished
     listjobs_wait(jobid, 'finished')
     # check listjobs output
     jobinfo = assert_listjobs(finished=jobid)
-    start_time = jobinfo.pop('start_time')
-    assert start_time and datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
+    start_time, end_time = jobinfo.pop('start_time'), jobinfo.pop('end_time')
+    assert datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
+    assert datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S.%f') if WITH_K8S else end_time is None
     assert jobinfo == { 'id': jobid, 'project': RUN_PROJECT, 'spider': RUN_SPIDER, 'state': 'finished' }
 
 def assert_response_ok(response):
