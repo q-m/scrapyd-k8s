@@ -18,8 +18,7 @@ class ResourceWatcher:
         List of subscriber callback functions to notify on events.
     """
 
-    def __init__(self, namespace, config):
-        """
+    def __init__(self, namespace, config):        """
         Initializes the ResourceWatcher.
 
         Parameters
