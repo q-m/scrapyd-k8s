@@ -6,6 +6,8 @@ from flask_basicauth import BasicAuth
 from natsort import natsort_keygen, ns
 
 # setup logging before anything else
+from .k8s_resource_watcher import ResourceWatcher
+from .k8s_scheduler import KubernetesScheduler
 from .config import Config
 from .logging import setup_logging
 config = Config()
@@ -17,6 +19,13 @@ repository = (config.repository_cls())(config)
 launcher = (config.launcher_cls())(config)
 scrapyd_config = config.scrapyd()
 
+
+# Initialize ResourceWatcher and KubernetesScheduler
+namespace = config.namespace()
+resource_watcher = ResourceWatcher(namespace)
+max_proc = int(scrapyd_config.get('max_proc', 4))
+logging.debug(f"MAX PROC IS SET TO: {max_proc}")
+k8s_scheduler = KubernetesScheduler(config, launcher, resource_watcher, max_proc)
 
 @app.get("/")
 def home():
@@ -54,8 +63,12 @@ def api_schedule():
     _version = request.form.get('_version', 'latest') # TODO allow customizing latest tag
     # any other parameter is passed as spider argument
     args = { k: v for k, v in request.form.items() if k not in ('project', 'spider', 'setting', 'jobid', 'priority', '_version') }
+    running_jobs = launcher.get_running_jobs_count()
+    start_suspended = running_jobs >= k8s_scheduler.max_proc
+    logger.info(
+        f"Scheduling job {job_id} with start_suspended={start_suspended}. Running jobs: {running_jobs}, Max procs: {k8s_scheduler.max_proc}")
     env_config, env_secret = project.env_config(), project.env_secret()
-    jobid = launcher.schedule(project, _version, spider, job_id, settings, args)
+    jobid = launcher.schedule(project, _version, spider, job_id, settings, args, start_suspended=start_suspended)
     return { 'status': 'ok', 'jobid': job_id }
 
 @app.post("/cancel.json")
