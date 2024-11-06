@@ -87,6 +87,8 @@ data:
     launcher     = scrapyd_k8s.launcher.K8s
     
     namespace    = default
+    
+    max_proc     = 1
 
     # This is an example spider that should work out of the box.
     # Adapt the spider config to your use-case.
@@ -181,7 +183,7 @@ rules:
     verbs: ["get"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    verbs: ["get", "list", "create", "delete"]
+    verbs: ["get", "list", "create", "patch", "update", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
