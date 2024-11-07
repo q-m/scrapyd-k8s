@@ -124,8 +124,8 @@ class K8s:
             )
         return prevstate
 
-    def enable_joblogs(self, config):
-        joblogs_init(config)
+    def enable_joblogs(self, config, resource_watcher):
+        joblogs_init(config, resource_watcher)
 
     def unsuspend_job(self, job_id: str):
         job_name = self._get_job_name(job_id)
