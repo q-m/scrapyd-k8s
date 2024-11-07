@@ -68,7 +68,7 @@ class Docker:
             c.kill(signal='SIG' + signal)
         return prevstate
 
-    def enable_joblogs(self, config):
+    def enable_joblogs(self, config, resource_watcher):
         logger.warning("Job logs are not supported when using the Docker launcher.")
 
     def _parse_job(self, c):
