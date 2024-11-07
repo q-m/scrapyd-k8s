@@ -147,7 +147,6 @@ class K8s:
         else:
             logger.warning("No storage provider configured; job logs will not be uploaded.")
 
-
     def unsuspend_job(self, job_id: str):
         job_name = self._get_job_name(job_id)
         if not job_name:

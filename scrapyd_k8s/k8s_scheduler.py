@@ -27,7 +27,6 @@ class KubernetesScheduler:
         self.max_proc = max_proc
         self.namespace = config.scrapyd().get('namespace', 'default')
 
-        # Subscribe to the ResourceWatcher
         resource_watcher.subscribe(self.handle_pod_event)
         logger.info(f"KubernetesScheduler initialized with max_proc={self.max_proc}.")
 
