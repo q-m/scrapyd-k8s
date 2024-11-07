@@ -156,7 +156,7 @@ def run():
         enable_authentication(app, config_username, config_password)
 
     if config.joblogs() is not None:
-        launcher.enable_joblogs(config)
+        launcher.enable_joblogs(config, resource_watcher)
         logger.info("Job logs handling enabled.")
     else:
         logger.debug("Job logs handling not enabled; 'joblogs' configuration section is missing.")

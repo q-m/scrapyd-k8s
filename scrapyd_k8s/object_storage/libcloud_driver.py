@@ -165,8 +165,9 @@ class LibcloudObjectStorage:
         ----
         Logs information about the existence check or errors encountered.
         """
+        container = self.driver.get_container(container_name=self._container_name)
         try:
-            objects = self.driver.list_container_objects(container=self._container_name, prefix=prefix)
+            objects = self.driver.list_container_objects(container=container, prefix=prefix)
             if objects:
                 logger.debug(f"At least one object with prefix '{prefix}' exists in container '{self._container_name}'.")
                 return True

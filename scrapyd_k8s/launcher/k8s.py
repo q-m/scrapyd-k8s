@@ -121,8 +121,8 @@ class K8s:
             )
         return prevstate
 
-    def enable_joblogs(self, config):
-        joblogs_init(config)
+    def enable_joblogs(self, config, resource_watcher):
+        joblogs_init(config, resource_watcher)
 
     def _parse_job(self, job):
         state = self._k8s_job_to_scrapyd_status(job)

@@ -63,25 +63,7 @@ class KubernetesJobLogHandler:
         self.pod_tmp_mapping = {}
         self.namespace = config.namespace()
         self.num_lines_to_check = int(config.joblogs().get('num_lines_to_check', 0))
-        self.object_storage_provider = None
-
-    def start(self):
-        """
-        Starts the pod watcher thread for job logs.
-
-        Returns
-        -------
-        None
-        """
-        if self.config.joblogs() and self.config.joblogs().get('storage_provider') is not None:
-            pod_watcher_thread = threading.Thread(
-                target=self.handle_events
-            )
-            pod_watcher_thread.daemon = True
-            pod_watcher_thread.start()
-            logger.info("Started pod watcher thread for job logs.")
-        else:
-            logger.warning("No storage provider configured; job logs will not be uploaded.")
+        self.object_storage_provider = LibcloudObjectStorage(self.config)
 
     def get_last_n_lines(self, file_path, num_lines):
         """
