@@ -63,25 +63,7 @@ class KubernetesJobLogHandler:
         self.pod_tmp_mapping = {}
         self.namespace = config.namespace()
         self.num_lines_to_check = int(config.joblogs().get('num_lines_to_check', 0))
-        self.object_storage_provider = None
-
-    def start(self):
-        """
-        Starts the pod watcher thread for job logs.
-
-        Returns
-        -------
-        None
-        """
-        if self.config.joblogs() and self.config.joblogs().get('storage_provider') is not None:
-            pod_watcher_thread = threading.Thread(
-                target=self.watch_pods
-            )
-            pod_watcher_thread.daemon = True
-            pod_watcher_thread.start()
-            logger.info("Started pod watcher thread for job logs.")
-        else:
-            logger.warning("No storage provider configured; job logs will not be uploaded.")
+        self.object_storage_provider = LibcloudObjectStorage(self.config)
 
     def get_last_n_lines(self, file_path, num_lines):
         """
@@ -236,7 +218,7 @@ class KubernetesJobLogHandler:
         except Exception as e:
             logger.exception(f"Error streaming logs for job '{job_name}': {e}")
 
-    def watch_pods(self):
+    def handle_events(self, event):
         """
         Watches Kubernetes pods and handles events such as starting log streaming or uploading logs.
 
@@ -245,36 +227,34 @@ class KubernetesJobLogHandler:
         None
         """
         self.object_storage_provider = LibcloudObjectStorage(self.config)
-        w = watch.Watch()
-        v1 = client.CoreV1Api()
         try:
-            for event in w.stream(v1.list_namespaced_pod, namespace=self.namespace):
-                pod = event['object']
-                if pod.metadata.labels.get("org.scrapy.job_id"):
-                    job_id = pod.metadata.labels.get("org.scrapy.job_id")
-                    pod_name = pod.metadata.name
-                    thread_name = f"{self.namespace}_{pod_name}"
-                    if pod.status.phase == 'Running':
-                        if (thread_name in self.watcher_threads
-                                and self.watcher_threads[thread_name] is not None
-                                and self.watcher_threads[thread_name].is_alive()):
-                            pass
+
+            pod = event['object']
+            if pod.metadata.labels.get("org.scrapy.job_id"):
+                job_id = pod.metadata.labels.get("org.scrapy.job_id")
+                pod_name = pod.metadata.name
+                thread_name = f"{self.namespace}_{pod_name}"
+                if pod.status.phase == 'Running':
+                    if (thread_name in self.watcher_threads
+                            and self.watcher_threads[thread_name] is not None
+                            and self.watcher_threads[thread_name].is_alive()):
+                        pass
+                    else:
+                        self.watcher_threads[thread_name] = threading.Thread(
+                            target=self.stream_logs,
+                            args=(pod_name,)
+                        )
+                        self.watcher_threads[thread_name].start()
+                elif pod.status.phase in ['Succeeded', 'Failed']:
+                    log_filename = self.pod_tmp_mapping.get(pod_name)
+                    if log_filename is not None and os.path.isfile(log_filename) and os.path.getsize(log_filename) > 0:
+                        if self.object_storage_provider.object_exists(job_id):
+                            logger.info(f"Log file for job '{job_id}' already exists in storage.")
                         else:
-                            self.watcher_threads[thread_name] = threading.Thread(
-                                target=self.stream_logs,
-                                args=(pod_name,)
-                            )
-                            self.watcher_threads[thread_name].start()
-                    elif pod.status.phase in ['Succeeded', 'Failed']:
-                        log_filename = self.pod_tmp_mapping.get(pod_name)
-                        if log_filename is not None and os.path.isfile(log_filename) and os.path.getsize(log_filename) > 0:
-                            if self.object_storage_provider.object_exists(job_id):
-                                logger.info(f"Log file for job '{job_id}' already exists in storage.")
-                            else:
-                                self.object_storage_provider.upload_file(log_filename)
-                        else:
-                            logger.info(f"Logfile not found for job '{job_id}'")
-                else:
-                    logger.debug(f"Other pod event type '{event['type']}' for pod '{pod.metadata.name}' - Phase: '{pod.status.phase}'")
+                            self.object_storage_provider.upload_file(log_filename)
+                    else:
+                        logger.info(f"Logfile not found for job '{job_id}'")
+            else:
+                logger.debug(f"Other pod event type '{event['type']}' for pod '{pod.metadata.name}' - Phase: '{pod.status.phase}'")
         except Exception as e:
             logger.exception(f"Error watching pods in namespace '{self.namespace}': {e}")
