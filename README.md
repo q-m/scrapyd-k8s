@@ -228,8 +228,7 @@ Lists spiders from the spider image's `org.scrapy.spiders` label.
 ### `listjobs.json` ([➽](https://scrapyd.readthedocs.io/en/latest/api.html#listjobs-json))
 
 Lists current jobs by looking at Docker containers or Kubernetes jobs.
-
-* **End time**: Set only for completed Kubernetes jobs; always null for Docker.
++Note that `end_time` is not yet supported for Docker.
 
 ### ~~`delversion.json`~~ ([➽](https://scrapyd.readthedocs.io/en/latest/api.html#delversion-json))
 
