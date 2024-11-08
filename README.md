@@ -229,9 +229,7 @@ Lists spiders from the spider image's `org.scrapy.spiders` label.
 
 Lists current jobs by looking at Docker containers or Kubernetes jobs.
 
-#### Limitations
-
-* **End time**; The job's end time will be populated only for the Kubernetes (k8s) launcher, provided the job finishes successfully and is not canceled. For Docker, this value will always be null.
+* **End time**: Set only for completed Kubernetes jobs; always null for Docker.
 
 ### ~~`delversion.json`~~ ([➽](https://scrapyd.readthedocs.io/en/latest/api.html#delversion-json))
 
