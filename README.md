@@ -151,7 +151,7 @@ curl http://localhost:6800/listjobs.json
 {
   "finished":[],
   "pending":[],
-  "running":[{"id":"e9b81fccbec211eeb3b109f30f136c01","project":"example","spider":"quotes","state":"running"}],
+  "running":[{"id":"e9b81fccbec211eeb3b109f30f136c01","project":"example","spider":"quotes","state":"running", "start_time":"2012-09-12 10:14:03.594664", "end_time":null}],
   "status":"ok"
 }
 ```
@@ -228,6 +228,7 @@ Lists spiders from the spider image's `org.scrapy.spiders` label.
 ### `listjobs.json` ([➽](https://scrapyd.readthedocs.io/en/latest/api.html#listjobs-json))
 
 Lists current jobs by looking at Docker containers or Kubernetes jobs.
+Note that `end_time` is not yet supported for Docker.
 
 ### ~~`delversion.json`~~ ([➽](https://scrapyd.readthedocs.io/en/latest/api.html#delversion-json))
 
