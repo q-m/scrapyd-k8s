@@ -7,6 +7,8 @@ from signal import Signals
 
 from ..utils import native_stringify_dict
 from scrapyd_k8s.joblogs import joblogs_init
+from ..k8s_resource_watcher import ResourceWatcher
+from ..k8s_scheduler import KubernetesScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,12 @@ class K8s:
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
 
+        # Initialize ResourceWatcher and KubernetesScheduler
+        self.max_proc = int(config.scrapyd().get('max_proc', 4))
+        self.resource_watcher = ResourceWatcher(self._namespace)
+        self.k8s_scheduler = KubernetesScheduler(config, self, self.resource_watcher, self.max_proc)
+        logger.debug(f"KubernetesLauncher initialized with max_proc={self.max_proc}.")
+
     def get_node_name(self):
         deployment = os.getenv('MY_DEPLOYMENT_NAME', 'default')
         namespace = os.getenv('MY_NAMESPACE')
@@ -39,7 +47,11 @@ class K8s:
         jobs = [self._parse_job(j) for j in jobs.items]
         return jobs
 
-    def schedule(self, project, version, spider, job_id, settings, args, start_suspended=False):
+    def schedule(self, project, version, spider, job_id, settings, args):
+        running_jobs = self.get_running_jobs_count()
+        start_suspended = running_jobs >= self.max_proc
+        logger.info(
+            f"Scheduling job {job_id} with start_suspended={start_suspended}. Running jobs: {running_jobs}, Max procs: {self.max_proc}")
         job_name = self._k8s_job_name(project.id(), job_id)
         _settings = [i for k, v in native_stringify_dict(settings, keys_only=False).items() for i in ['-s', f"{k}={v}"]]
         _args = [i for k, v in native_stringify_dict(args, keys_only=False).items() for i in ['-a', f"{k}={v}"]]
