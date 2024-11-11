@@ -41,7 +41,7 @@ class Docker:
             'SCRAPYD_JOB': job_id,
         } # TODO env_source handling
         resources = project.resources(spider)
-        c = self._docker.containers.run(
+        c = self._docker.containers.create(
             image=project.repository() + ':' + version,
             command=['scrapy', 'crawl', spider, *_args, *_settings],
             environment=env,
@@ -70,6 +70,12 @@ class Docker:
 
     def enable_joblogs(self, config, resource_watcher):
         logger.warning("Job logs are not supported when using the Docker launcher.")
+
+    def get_running_jobs_count(self):
+        # Return the number of running Docker containers matching the job labels
+        label = self.LABEL_PROJECT
+        running_jobs = self._docker.containers.list(filters={'label': label, 'status': 'running'})
+        return len(running_jobs)
 
     def _parse_job(self, c):
         state = self._docker_to_scrapyd_status(c.status)
