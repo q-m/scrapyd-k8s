@@ -30,7 +30,6 @@ class K8s:
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
 
-        # Initialize ResourceWatcher and KubernetesScheduler
         self.max_proc = int(config.scrapyd().get('max_proc', 4))
         self.resource_watcher = ResourceWatcher(self._namespace)
         self.k8s_scheduler = KubernetesScheduler(config, self, self.resource_watcher, self.max_proc)
