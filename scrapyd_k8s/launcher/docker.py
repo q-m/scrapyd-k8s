@@ -2,6 +2,9 @@ import logging
 import re
 import socket
 
+import threading
+import time
+
 import docker
 from ..utils import format_iso_date_string, native_stringify_dict
 
@@ -22,6 +25,31 @@ class Docker:
 
     def __init__(self, config):
         self._docker = docker.from_env()
+        self.max_proc = int(config.scrapyd().get('max_proc', 4))
+        self._stop_event = threading.Event()
+        self._lock = threading.Lock()
+
+        self._thread = threading.Thread(target=self._background_task, daemon=True)
+        self._thread.start()
+        logger.info("Background thread for managing Docker containers started.")
+
+    def _background_task(self):
+        """
+        Background thread that periodically checks and starts pending containers.
+        """
+        check_interval = 5  # seconds
+        while not self._stop_event.is_set():
+            with self._lock:
+                self.start_pending_containers()
+            time.sleep(check_interval)
+
+    def shutdown(self):
+        """
+        Cleanly shutdown the background thread.
+        """
+        self._stop_event.set()
+        self._thread.join()
+        logger.info("Background thread for managing Docker containers stopped.")
 
     def get_node_name(self):
         return socket.gethostname()
@@ -55,6 +83,41 @@ class Docker:
             mem_limit=resources.get('limits', {}).get('memory'),
             cpu_quota=_str_to_micro(resources.get('limits', {}).get('cpu'))
         )
+        running_jobs_count = self.get_running_jobs_count()
+        if running_jobs_count < self.max_proc:
+            self.start_pending_containers()
+
+    def start_pending_containers(self):
+        """
+        Checks if there is capacity to start pending containers and starts them if possible.
+        """
+        running_jobs_count = self.get_running_jobs_count()
+        logger.debug(f"Current running jobs: {running_jobs_count}, max_proc: {self.max_proc}")
+
+        while running_jobs_count < self.max_proc:
+            pending_container = self.get_next_pending_container()
+            if not pending_container:
+                logger.info("No pending containers to start.")
+                break
+            try:
+                pending_container.start()
+                running_jobs_count += 1
+                logger.info(
+                    f"Started pending container {pending_container.name}. Total running jobs now: {running_jobs_count}")
+            except Exception as e:
+                logger.error(f"Failed to start container {pending_container.name}: {e}")
+                break
+
+    def get_next_pending_container(self):
+        pending_containers = self._docker.containers.list(all=True, filters={
+            'label': self.LABEL_PROJECT,
+            'status': 'created',
+        })
+        if not pending_containers:
+            return None
+        # Sort by creation time to ensure FIFO order
+        pending_containers.sort(key=lambda c: c.attrs['Created'])
+        return pending_containers[0]
 
     def cancel(self, project_id, job_id, signal):
         c = self._get_container(project_id, job_id)
@@ -64,8 +127,12 @@ class Docker:
         prevstate = self._docker_to_scrapyd_status(c.status)
         if c.status == 'created' or c.status == 'scheduled':
             c.remove()
+            logger.info(f"Removed pending container {c.name}.")
         elif c.status == 'running':
             c.kill(signal='SIG' + signal)
+            logger.info(f"Killed and removed running container {c.name}.")
+        # After cancelling, try to start pending containers since we might have capacity
+        self.start_pending_containers()
         return prevstate
 
     def enable_joblogs(self, config, resource_watcher):
