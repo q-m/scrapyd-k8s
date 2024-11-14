@@ -31,7 +31,7 @@ class K8s:
         self._k8s_batch = kubernetes.client.BatchV1Api()
 
         self.max_proc = int(config.scrapyd().get('max_proc', 4))
-        self.resource_watcher = ResourceWatcher(self._namespace)
+        self.resource_watcher = ResourceWatcher(self._namespace, config)
         self.k8s_scheduler = KubernetesScheduler(config, self, self.resource_watcher, self.max_proc)
         logger.debug(f"KubernetesLauncher initialized with max_proc={self.max_proc}.")
 
