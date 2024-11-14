@@ -25,6 +25,8 @@ class K8s:
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
 
+        self.resource_watcher = ResourceWatcher(self._namespace, config)
+
     def get_node_name(self):
         deployment = os.getenv('MY_DEPLOYMENT_NAME', 'default')
         namespace = os.getenv('MY_NAMESPACE')

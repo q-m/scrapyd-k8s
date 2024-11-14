@@ -3,6 +3,7 @@ import logging
 import time
 from kubernetes import client, watch
 from typing import Callable, List
+import urllib3
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class ResourceWatcher:
         List of subscriber callback functions to notify on events.
     """
 
-    def __init__(self, namespace: str):
+    def __init__(self, namespace, config):
         """
         Initializes the ResourceWatcher.
 
@@ -28,6 +29,9 @@ class ResourceWatcher:
             Kubernetes namespace to watch pods in.
         """
         self.namespace = namespace
+        self.reconnection_attempts = int(config.scrapyd().get('reconnection_attempts', 5))
+        self.backoff_time = int(config.scrapyd().get('backoff_time', 5))
+        self.backoff_coefficient = int(config.scrapyd().get('backoff_coefficient', 2))
         self.subscribers: List[Callable] = []
         self._stop_event = threading.Event()
         self.watcher_thread = threading.Thread(target=self.watch_pods, daemon=True)
@@ -82,20 +86,35 @@ class ResourceWatcher:
         """
         v1 = client.CoreV1Api()
         w = watch.Watch()
+        resource_version = None
 
         logger.info(f"Started watching pods in namespace '{self.namespace}'.")
-
-        while not self._stop_event.is_set():
+        backoff_time = self.backoff_time
+        reconnection_attempts = self.reconnection_attempts
+        print(f"RECONNECTION: {reconnection_attempts}")
+        print(f"BACKOFF TIME: {backoff_time}")
+        while not self._stop_event.is_set() and reconnection_attempts > 0:
             try:
-                for event in w.stream(v1.list_namespaced_pod, namespace=self.namespace, timeout_seconds=0):
+                kwargs = {
+                    'namespace': self.namespace,
+                    'timeout_seconds': 0,
+                }
+                if resource_version:
+                    kwargs['resource_version'] = resource_version
+
+                for event in w.stream(v1.list_namespaced_pod, **kwargs):
                     pod_name = event['object'].metadata.name
+                    resource_version = event['object'].metadata.resource_version
                     event_type = event['type']
                     logger.debug(f"Received event: {event_type} for pod: {pod_name}")
                     self.notify_subscribers(event)
-            except Exception as e:
-                logger.exception(f"Error watching pods in namespace '{self.namespace}': {e}")
+            except urllib3.exceptions.ProtocolError as e:
+                reconnection_attempts -= 1
+                logger.exception(f"Encountered ProtocolError: {e}")
                 logger.info("Retrying to watch pods after a short delay...")
-                time.sleep(5)
+                time.sleep(backoff_time)
+                backoff_time = backoff_time * self.backoff_coefficient
+
 
     def stop(self):
         """
