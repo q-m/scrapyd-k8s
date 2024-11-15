@@ -155,13 +155,5 @@ def run():
     if config_username is not None and config_password is not None:
         enable_authentication(app, config_username, config_password)
 
-    if config.joblogs() is not None:
-        namespace = config.namespace()
-        resource_watcher = ResourceWatcher(namespace, config)
-        launcher.enable_joblogs(config, resource_watcher)
-        logger.info("Job logs handling enabled.")
-    else:
-        logger.debug("Job logs handling not enabled; 'joblogs' configuration section is missing.")
-
     # run server
     app.run(host=host, port=port)
