@@ -1,4 +1,5 @@
 import os
+import logging
 
 import kubernetes
 import kubernetes.stream
@@ -6,11 +7,10 @@ import logging
 from signal import Signals
 
 from kubernetes.client import ApiException
-
-from ..utils import native_stringify_dict
-from scrapyd_k8s.joblogs import joblogs_init
-from ..k8s_resource_watcher import ResourceWatcher
 from ..k8s_scheduler import KubernetesScheduler
+from ..k8s_resource_watcher import ResourceWatcher
+from ..utils import native_stringify_dict
+from scrapyd_k8s.joblogs import KubernetesJobLogHandler
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +32,19 @@ class K8s:
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
 
+
         self.max_proc = int(config.scrapyd().get('max_proc', 4))
+        self._init_resource_watcher(config)
+
+    def _init_resource_watcher(self, config):
         self.resource_watcher = ResourceWatcher(self._namespace, config)
         self.k8s_scheduler = KubernetesScheduler(config, self, self.resource_watcher, self.max_proc)
         logger.debug(f"KubernetesLauncher initialized with max_proc={self.max_proc}.")
+
+        if config.joblogs() is not None:
+            self.enable_joblogs(config)
+        else:
+            logger.debug("Job logs handling not enabled; 'joblogs' configuration section is missing.")
 
     def get_node_name(self):
         deployment = os.getenv('MY_DEPLOYMENT_NAME', 'default')
@@ -139,8 +148,15 @@ class K8s:
             )
         return prevstate
 
-    def enable_joblogs(self, config, resource_watcher):
-        joblogs_init(config, resource_watcher)
+    def enable_joblogs(self, config):
+        joblogs_config = config.joblogs()
+        if joblogs_config and joblogs_config.get('storage_provider') is not None:
+            log_handler = KubernetesJobLogHandler(config)
+            self.resource_watcher.subscribe(log_handler.handle_events)
+            logger.info("Job logs handler started.")
+        else:
+            logger.warning("No storage provider configured; job logs will not be uploaded.")
+
 
     def unsuspend_job(self, job_id: str):
         job_name = self._get_job_name(job_id)

@@ -91,8 +91,6 @@ class ResourceWatcher:
         logger.info(f"Started watching pods in namespace '{self.namespace}'.")
         backoff_time = self.backoff_time
         reconnection_attempts = self.reconnection_attempts
-        print(f"RECONNECTION: {reconnection_attempts}")
-        print(f"BACKOFF TIME: {backoff_time}")
         while not self._stop_event.is_set() and reconnection_attempts > 0:
             try:
                 kwargs = {
@@ -101,19 +99,47 @@ class ResourceWatcher:
                 }
                 if resource_version:
                     kwargs['resource_version'] = resource_version
-
+                first_event = True
                 for event in w.stream(v1.list_namespaced_pod, **kwargs):
+                    if first_event:
+                        # Reset reconnection attempts and backoff time upon successful reconnection
+                        reconnection_attempts = self.reconnection_attempts
+                        backoff_time = self.backoff_time
+                        first_event = False  # Ensure this only happens once per connection
                     pod_name = event['object'].metadata.name
                     resource_version = event['object'].metadata.resource_version
                     event_type = event['type']
                     logger.debug(f"Received event: {event_type} for pod: {pod_name}")
                     self.notify_subscribers(event)
-            except urllib3.exceptions.ProtocolError as e:
+            except (urllib3.exceptions.ProtocolError,
+                    urllib3.exceptions.ReadTimeoutError,
+                    urllib3.exceptions.ConnectionError) as e:
                 reconnection_attempts -= 1
-                logger.exception(f"Encountered ProtocolError: {e}")
-                logger.info("Retrying to watch pods after a short delay...")
+                logger.exception(f"Encountered network error: {e}")
+                logger.info(f"Retrying to watch pods after {backoff_time} seconds...")
                 time.sleep(backoff_time)
-                backoff_time = backoff_time * self.backoff_coefficient
+                backoff_time *= self.backoff_coefficient
+            except client.ApiException as e:
+                # Resource version is too old and cannot be accessed anymore
+                if e.status == 410:
+                    logger.error("Received 410 Gone error, resetting resource_version and restarting watch.")
+                    resource_version = None
+                    continue
+                else:
+                    reconnection_attempts -= 1
+                    logger.exception(f"Encountered ApiException: {e}")
+                    logger.info(f"Retrying to watch pods after {backoff_time} seconds...")
+                    time.sleep(backoff_time)
+                    backoff_time *= self.backoff_coefficient
+            except StopIteration:
+                logger.info("Watch stream ended, restarting watch.")
+                continue
+            except Exception as e:
+                reconnection_attempts -= 1
+                logger.exception(f"Watcher encountered exception: {e}")
+                logger.info(f"Retrying to watch pods after {backoff_time} seconds...")
+                time.sleep(backoff_time)
+                backoff_time *= self.backoff_coefficient
 
 
     def stop(self):
