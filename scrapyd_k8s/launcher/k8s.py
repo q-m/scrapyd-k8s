@@ -6,16 +6,16 @@ import kubernetes.stream
 import logging
 from signal import Signals
 
-from ..utils import format_datetime_object
+from ..utils import format_datetime_object, native_stringify_dict
 from scrapyd_k8s.joblogs import KubernetesJobLogHandler
 
 logger = logging.getLogger(__name__)
 
 from kubernetes.client import ApiException
-
-from ..utils import native_stringify_dict
-from ..k8s_resource_watcher import ResourceWatcher
 from ..k8s_scheduler import KubernetesScheduler
+from ..k8s_resource_watcher import ResourceWatcher
+from ..utils import native_stringify_dict
+from scrapyd_k8s.joblogs import KubernetesJobLogHandler
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ class K8s:
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
         self._init_resource_watcher(config)
+        self.max_proc = int(config.scrapyd().get('max_proc', 4))
 
     def _init_resource_watcher(self, config):
         self.resource_watcher = ResourceWatcher(self._namespace, config)
@@ -50,7 +51,6 @@ class K8s:
         self.max_proc = int(config.scrapyd().get('max_proc', 4))
         self.k8s_scheduler = KubernetesScheduler(config, self, self.resource_watcher, self.max_proc)
         logger.debug(f"KubernetesLauncher initialized with max_proc={self.max_proc}.")
-
 
     def get_node_name(self):
         deployment = os.getenv('MY_DEPLOYMENT_NAME', 'default')
