@@ -2,6 +2,18 @@
 This file provides you with the detailed description of parameters listed in the config file, and explaining why they are used
 and when you are expected to provide or change them.
 
+## Configuration file
+
+* `http_port`    - defaults to `6800` ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#http-port))
+* `bind_address` - defaults to `127.0.0.1` ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#bind-address))
+* `max_proc`     - _(implementation pending)_, if unset or `0` it will use the number of nodes in the cluster, defaults to `0` ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#max-proc))
+* `repository`   - Python class for accessing the image repository, defaults to `scrapyd_k8s.repository.Remote`
+* `launcher`     - Python class for managing jobs on the cluster, defaults to `scrapyd_k8s.launcher.K8s`
+* `username`     - Set this and `password` to enable basic authentication ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#username))
+* `password`     - Set this and `username` to enable basic authentication ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#password))
+
+The Docker and Kubernetes launchers have their own additional options.
+
 ## [scrapyd] section, reconnection_attempts, backoff_time, backoff_coefficient
 
 ### Context

@@ -241,16 +241,7 @@ Not supported, by design.
 If you want to delete a project, remove it from the configuration file.
 
 ## Configuration file
-
-* `http_port`    - defaults to `6800` ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#http-port))
-* `bind_address` - defaults to `127.0.0.1` ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#bind-address))
-* `max_proc`     - _(implementation pending)_, if unset or `0` it will use the number of nodes in the cluster, defaults to `0` ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#max-proc))
-* `repository`   - Python class for accessing the image repository, defaults to `scrapyd_k8s.repository.Remote`
-* `launcher`     - Python class for managing jobs on the cluster, defaults to `scrapyd_k8s.launcher.K8s`
-* `username`     - Set this and `password` to enable basic authentication ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#username))
-* `password`     - Set this and `username` to enable basic authentication ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#password))
-
-The Docker and Kubernetes launchers have their own additional options.
+To read in detail about the config file, please, navigate to the  [Configuration Guide](CONFIG.md)
 
 ## License
 
