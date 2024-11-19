@@ -1,11 +1,15 @@
 import os
+import logging
 
 import kubernetes
 import kubernetes.stream
 from signal import Signals
 
+from ..k8s_resource_watcher import ResourceWatcher
 from ..utils import format_datetime_object, native_stringify_dict
-from scrapyd_k8s.joblogs import joblogs_init
+from scrapyd_k8s.joblogs import KubernetesJobLogHandler
+
+logger = logging.getLogger(__name__)
 
 class K8s:
 
@@ -24,6 +28,16 @@ class K8s:
 
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
+
+        self._init_resource_watcher(config)
+
+    def _init_resource_watcher(self, config):
+        self.resource_watcher = ResourceWatcher(self._namespace, config)
+
+        if config.joblogs() is not None:
+            self.enable_joblogs(config)
+        else:
+            logger.debug("Job logs handling not enabled; 'joblogs' configuration section is missing.")
 
     def get_node_name(self):
         deployment = os.getenv('MY_DEPLOYMENT_NAME', 'default')
@@ -122,7 +136,14 @@ class K8s:
         return prevstate
 
     def enable_joblogs(self, config):
-        joblogs_init(config)
+        joblogs_config = config.joblogs()
+        if joblogs_config and joblogs_config.get('storage_provider') is not None:
+            log_handler = KubernetesJobLogHandler(config)
+            self.resource_watcher.subscribe(log_handler.handle_events)
+            logger.info("Job logs handler started.")
+        else:
+            logger.warning("No storage provider configured; job logs will not be uploaded.")
+
 
     def _parse_job(self, job):
         state = self._k8s_job_to_scrapyd_status(job)

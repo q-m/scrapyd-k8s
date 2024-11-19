@@ -1,7 +1,6 @@
 import logging
 import sys
-from .api import run, config
-from .joblogs import joblogs_init
+from .api import run
 
 def setup_logging():
     logging.basicConfig(
@@ -14,5 +13,4 @@ def setup_logging():
 
 if __name__ == "__main__":
     setup_logging()
-    joblogs_init(config)
     run()
