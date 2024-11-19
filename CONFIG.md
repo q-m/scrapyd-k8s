@@ -59,12 +59,11 @@ choose to use them.
 The event watcher establishes a connection to the Kubernetes API and receives a stream of events from it. However, the
 nature of this long-lived connection is unstable; it can be interrupted by network issues, proxies configured to terminate
 long-lived connections, and other factors. For this reason, a mechanism was implemented to re-establish the long-lived
-connection to the Kubernetes API. To achieve this, three parameters were introduced: `reconnection_attempts`,
+connection to the Kubernetes API. To achieve this, three parameters were introduced:
 `backoff_time` and `backoff_coefficient`.
 
 #### What are these parameters about?
 
-* `reconnection_attempts` - defines how many consecutive attempts will be made to reconnect if the connection fails;
 * `backoff_time`, `backoff_coefficient` - are used to gradually slow down each subsequent attempt to establish a
   connection with the Kubernetes API, preventing the API from becoming overloaded with requests.
   The `backoff_time` increases exponentially and is calculated as `backoff_time *= self.backoff_coefficient`.
@@ -73,4 +72,3 @@ connection to the Kubernetes API. To achieve this, three parameters were introdu
 
 Default values for these parameters are provided in the code and are tuned to an "average" cluster setting. If your network
 requirements or other conditions are unusual, you may need to adjust these values to better suit your specific setup.
-
