@@ -1,5 +1,5 @@
-import threading
 import logging
+import threading
 import time
 from kubernetes import client, watch
 from typing import Callable, List
@@ -99,7 +99,7 @@ class ResourceWatcher:
                     kwargs['resource_version'] = resource_version
                 first_event = True
                 for event in w.stream(v1.list_namespaced_pod, **kwargs):
-                    logging.debug("Established connection, received an event from k8s API")
+                    logging.debug("Connected to the k8s API, received an event from k8s API")
                     if first_event:
                         # Reset reconnection attempts and backoff time upon successful reconnection
                         logging.debug("This is the first event in the stream in the established connection, setting reconnection attempts to default")

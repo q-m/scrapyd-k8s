@@ -1,6 +1,6 @@
+import logging
 import re
 import socket
-import logging
 
 import docker
 from ..utils import format_iso_date_string, native_stringify_dict
