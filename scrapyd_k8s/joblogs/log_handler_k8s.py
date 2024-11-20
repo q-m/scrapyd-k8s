@@ -226,7 +226,6 @@ class KubernetesJobLogHandler:
         -------
         None
         """
-        self.object_storage_provider = LibcloudObjectStorage(self.config)
         try:
 
             pod = event['object']
