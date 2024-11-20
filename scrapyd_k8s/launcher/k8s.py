@@ -61,7 +61,8 @@ class K8s:
         label_selector = self.LABEL_PROJECT + ('=%s' % project if project else '')
         return self._filter_jobs(
             label_selector=label_selector,
-            filter_func=self._parse_job
+            filter_func=None,  # No additional filtering
+            parse_func=self._parse_job
         )
 
     def schedule(self, project, version, spider, job_id, settings, args):
@@ -202,21 +203,25 @@ class K8s:
         logger.debug(f"Found {len(suspended_jobs)} suspended jobs.")
         return suspended_jobs
 
-    def _filter_jobs(self, label_selector: str, filter_func):
+    def _filter_jobs(self, label_selector, filter_func=None, parse_func=None):
         """
-        Helper method to fetch jobs and filter them based on a provided function.
+        Helper method to fetch jobs and optionally filter and parse them.
 
         Parameters
         ----------
         label_selector : str
             Kubernetes label selector to filter jobs.
-        filter_func : function
+        filter_func : function, optional
             A function that takes a job and returns True if the job matches the condition.
+            If None, all jobs are included.
+        parse_func : function, optional
+            A function that takes a job and returns a transformed job.
+            If None, the raw job object is returned.
 
         Returns
         -------
         list
-            A list of Kubernetes Job objects that match the filter condition.
+            A list of Kubernetes Job objects that match the filter condition and are parsed if parse_func is provided.
         """
         try:
             jobs_response = self._k8s_batch.list_namespaced_job(
@@ -224,11 +229,14 @@ class K8s:
                 label_selector=label_selector
             )
             jobs = jobs_response.items
-            filtered_jobs = []
-            for job in jobs:
-                if filter_func(job):
-                    filtered_jobs.append(job)
-            return filtered_jobs
+
+            if filter_func is not None:
+                jobs = [job for job in jobs if filter_func(job)]
+
+            if parse_func is not None:
+                jobs = [parse_func(job) for job in jobs]
+
+            return jobs
         except ApiException as e:
             logger.exception(f"API call failed while listing jobs: {e}")
             return []
@@ -283,25 +291,44 @@ class K8s:
         }
 
     def _get_job(self, project, job_id):
-        label = self.LABEL_JOB_ID + '=' + job_id
-        r = self._k8s_batch.list_namespaced_job(namespace=self._namespace, label_selector=label)
-        if not r or not r.items:
+        label_selector = f"{self.LABEL_JOB_ID}={job_id}"
+        jobs = self._filter_jobs(
+            label_selector=label_selector,
+            filter_func=None
+        )
+        if not jobs:
+            logger.error(f"No job found with job_id={job_id}")
             return None
-        job = r.items[0]
-
+        job = jobs[0]
         if job.metadata.labels.get(self.LABEL_PROJECT) != project:
-            # TODO log error
+            logger.error(f"Job {job_id} does not belong to project {project}")
             return None
-
         return job
 
     def _get_job_name(self, job_id: str):
+        """
+                Retrieves the Kubernetes job name for the given job ID.
+
+                Parameters
+                ----------
+                job_id : str
+                    The job ID to look up.
+
+                Returns
+                -------
+                str or None
+                    The name of the Kubernetes job, or None if not found.
+                """
         label_selector = f"{self.LABEL_JOB_ID}={job_id}"
-        jobs = self._k8s_batch.list_namespaced_job(namespace=self._namespace, label_selector=label_selector)
-        if not jobs.items:
+        jobs = self._filter_jobs(
+            label_selector=label_selector,
+            filter_func=None
+        )
+
+        if not jobs:
             logger.error(f"No job found with job_id={job_id}")
             return None
-        return jobs.items[0].metadata.name
+        return jobs[0].metadata.name
 
     def _get_pod(self, project, job_id):
         label = self.LABEL_JOB_ID + '=' + job_id
