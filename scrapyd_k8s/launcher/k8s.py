@@ -11,6 +11,8 @@ from scrapyd_k8s.joblogs import KubernetesJobLogHandler
 
 logger = logging.getLogger(__name__)
 
+from kubernetes.client import ApiException
+
 from ..utils import native_stringify_dict
 from ..k8s_resource_watcher import ResourceWatcher
 from ..k8s_scheduler import KubernetesScheduler
@@ -56,10 +58,11 @@ class K8s:
         return ".".join([n for n in [namespace, deployment] if n])
 
     def listjobs(self, project=None):
-        label = self.LABEL_PROJECT + ('=%s'%(project) if project else '')
-        jobs = self._k8s_batch.list_namespaced_job(namespace=self._namespace, label_selector=label)
-        jobs = [self._parse_job(j) for j in jobs.items]
-        return jobs
+        label_selector = self.LABEL_PROJECT + ('=%s' % project if project else '')
+        return self._filter_jobs(
+            label_selector=label_selector,
+            filter_func=self._parse_job
+        )
 
     def schedule(self, project, version, spider, job_id, settings, args):
         running_jobs = self.get_running_jobs_count()
@@ -181,40 +184,92 @@ class K8s:
         Returns the number of currently active (unsuspended, not completed, not failed) jobs.
         """
         label_selector = f"{self.LABEL_JOB_ID}"
-        jobs = self._k8s_batch.list_namespaced_job(
-            namespace=self._namespace,
-            label_selector=label_selector
+        active_jobs = self._filter_jobs(
+            label_selector=label_selector,
+            filter_func=self._is_active_job
         )
-
-        active_jobs = []
-        for job in jobs.items:
-            job_name = job.metadata.name
-            is_suspended = job.spec.suspend
-            is_completed = job.status.completion_time is not None
-            has_failed = job.status.failed is not None and job.status.failed > 0
-            logger.debug(f"Job {job_name}: suspended={is_suspended}, completed={is_completed}, failed={has_failed}")
-
-            if not is_suspended and not is_completed and not has_failed:
-                active_jobs.append(job)
-
-        logger.debug(f"Active jobs: {[job.metadata.name for job in active_jobs]}")
         logger.debug(f"Found {len(active_jobs)} active jobs.")
-
         return len(active_jobs)
 
     def list_suspended_jobs(self, label_selector: str = ""):
+        """
+        Retrieves a list of suspended jobs.
+        """
+        suspended_jobs = self._filter_jobs(
+            label_selector=label_selector,
+            filter_func=self._is_suspended_job
+        )
+        logger.debug(f"Found {len(suspended_jobs)} suspended jobs.")
+        return suspended_jobs
+
+    def _filter_jobs(self, label_selector: str, filter_func):
+        """
+        Helper method to fetch jobs and filter them based on a provided function.
+
+        Parameters
+        ----------
+        label_selector : str
+            Kubernetes label selector to filter jobs.
+        filter_func : function
+            A function that takes a job and returns True if the job matches the condition.
+
+        Returns
+        -------
+        list
+            A list of Kubernetes Job objects that match the filter condition.
+        """
         try:
-            jobs = self._k8s_batch.list_namespaced_job(
+            jobs_response = self._k8s_batch.list_namespaced_job(
                 namespace=self._namespace,
                 label_selector=label_selector
             )
-            # Filter jobs where spec.suspend == True
-            suspended_jobs = [job for job in jobs.items if job.spec.suspend]
-            logger.debug(f"Found {len(suspended_jobs)} suspended jobs.")
-            return suspended_jobs
-        except Exception as e:
-            logger.exception(f"Error listing suspended jobs: {e}")
+            jobs = jobs_response.items
+            filtered_jobs = []
+            for job in jobs:
+                if filter_func(job):
+                    filtered_jobs.append(job)
+            return filtered_jobs
+        except ApiException as e:
+            logger.exception(f"API call failed while listing jobs: {e}")
             return []
+
+    def _is_active_job(self, job):
+        """
+        Determines if a job is active (running) based on your specific filtering criteria.
+
+        Parameters
+        ----------
+        job : V1Job
+            A Kubernetes Job object.
+
+        Returns
+        -------
+        bool
+            True if the job is active, False otherwise.
+        """
+        job_name = job.metadata.name
+        is_suspended = job.spec.suspend
+        is_completed = job.status.completion_time is not None
+        has_failed = job.status.failed is not None and job.status.failed > 0
+        logger.debug(
+            f"Job {job_name}: suspended={is_suspended}, completed={is_completed}, failed={has_failed}")
+        return not is_suspended and not is_completed and not has_failed
+
+    def _is_suspended_job(self, job):
+        """
+        Determines if a job is suspended.
+
+        Parameters
+        ----------
+        job : V1Job
+            A Kubernetes Job object.
+
+        Returns
+        -------
+        bool
+            True if the job is suspended, False otherwise.
+        """
+        return job.spec.suspend
 
     def _parse_job(self, job):
         state = self._k8s_job_to_scrapyd_status(job)
