@@ -90,7 +90,7 @@ data:
     
     max_proc     = 2
     
-    logging_level = DEBUG
+    logging_level = INFO
 
     # This is an example spider that should work out of the box.
     # Adapt the spider config to your use-case.
