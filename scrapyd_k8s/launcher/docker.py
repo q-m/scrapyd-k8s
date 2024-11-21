@@ -6,7 +6,7 @@ import threading
 import time
 
 import docker
-from ..utils import native_stringify_dict
+from ..utils import format_iso_date_string, native_stringify_dict
 
 logger = logging.getLogger(__name__)
 
@@ -145,11 +145,14 @@ class Docker:
         return len(running_jobs)
 
     def _parse_job(self, c):
+        state = self._docker_to_scrapyd_status(c.status)
         return {
             'id': c.labels.get(self.LABEL_JOB_ID),
-            'state': self._docker_to_scrapyd_status(c.status),
+            'state': state,
             'project': c.labels.get(self.LABEL_PROJECT),
-            'spider': c.labels.get(self.LABEL_SPIDER)
+            'spider': c.labels.get(self.LABEL_SPIDER),
+            'start_time': format_iso_date_string(c.attrs['State']['StartedAt']) if state in ['running', 'finished'] else None,
+            'end_time': None,  # Not available using Docker's API. Add to the job representation to keep it the same as K8s jobs listing.
         }
 
     def _get_container(self, project_id, job_id):

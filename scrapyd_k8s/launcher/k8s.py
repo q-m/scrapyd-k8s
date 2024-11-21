@@ -9,7 +9,7 @@ from signal import Signals
 from kubernetes.client import ApiException
 from ..k8s_scheduler import KubernetesScheduler
 from ..k8s_resource_watcher import ResourceWatcher
-from ..utils import native_stringify_dict
+from ..utils import format_datetime_object, native_stringify_dict
 from scrapyd_k8s.joblogs import KubernetesJobLogHandler
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,6 @@ class K8s:
 
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
-
 
         self.max_proc = int(config.scrapyd().get('max_proc', 4))
         self._init_resource_watcher(config)
@@ -157,7 +156,6 @@ class K8s:
         else:
             logger.warning("No storage provider configured; job logs will not be uploaded.")
 
-
     def unsuspend_job(self, job_id: str):
         job_name = self._get_job_name(job_id)
         if not job_name:
@@ -275,11 +273,14 @@ class K8s:
         return job.spec.suspend
 
     def _parse_job(self, job):
+        state = self._k8s_job_to_scrapyd_status(job)
         return {
             'id': job.metadata.labels.get(self.LABEL_JOB_ID),
-            'state': self._k8s_job_to_scrapyd_status(job),
+            'state': state,
             'project': job.metadata.labels.get(self.LABEL_PROJECT),
-            'spider': job.metadata.labels.get(self.LABEL_SPIDER)
+            'spider': job.metadata.labels.get(self.LABEL_SPIDER),
+            'start_time': format_datetime_object(job.status.start_time) if state in ['running', 'finished'] else None,
+            'end_time': format_datetime_object(job.status.completion_time) if job.status.completion_time and state == 'finished' else None,
         }
 
     def _get_job(self, project, job_id):
