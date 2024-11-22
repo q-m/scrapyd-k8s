@@ -1,8 +1,6 @@
 import os
-import logging
 import re
-
-logger = logging.getLogger(__name__)
+import logging
 
 from libcloud.storage.types import (
     ObjectError,
@@ -10,6 +8,8 @@ from libcloud.storage.types import (
     InvalidContainerNameError,
 )
 from libcloud.storage.providers import get_driver
+
+logger = logging.getLogger(__name__)
 
 class LibcloudObjectStorage:
     """
