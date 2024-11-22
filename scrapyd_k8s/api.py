@@ -5,7 +5,6 @@ from flask import Flask, request, Response, jsonify
 from flask_basicauth import BasicAuth
 from natsort import natsort_keygen, ns
 
-
 # setup logging before anything else
 from .config import Config
 from .logging import setup_logging
@@ -17,6 +16,7 @@ app = Flask(__name__)
 repository = (config.repository_cls())(config)
 launcher = (config.launcher_cls())(config)
 scrapyd_config = config.scrapyd()
+
 
 @app.get("/")
 def home():
