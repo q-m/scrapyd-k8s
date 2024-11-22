@@ -12,6 +12,7 @@ stick to [scrapyd's configuration](https://scrapyd.readthedocs.io/en/latest/conf
 * `launcher`     - Python class for managing jobs on the cluster, defaults to `scrapyd_k8s.launcher.K8s`
 * `username`     - Set this and `password` to enable basic authentication ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#username))
 * `password`     - Set this and `username` to enable basic authentication ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#password))
+* `log_level`    - Log level, defaults to `INFO`
 
 The Docker and Kubernetes launchers have their own additional options.
 

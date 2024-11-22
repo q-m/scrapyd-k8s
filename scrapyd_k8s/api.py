@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 import logging
-from .config import Config
-config = Config()
-from .logging_config import setup_logging
-log_level = config.scrapyd().get('logging_level', 'INFO')
-setup_logging(log_level)
 import uuid
 from flask import Flask, request, Response, jsonify
 from flask_basicauth import BasicAuth
 from natsort import natsort_keygen, ns
 
+# setup logging before anything else
+from .config import Config
+from .logging import setup_logging
+config = Config()
+log_level = config.scrapyd().get('log_level', 'INFO')
+setup_logging(log_level)
 
 app = Flask(__name__)
 repository = (config.repository_cls())(config)
