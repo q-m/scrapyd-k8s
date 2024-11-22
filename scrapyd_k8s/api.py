@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
+import logging
+from .config import Config
+config = Config()
+from .logging_config import setup_logging
+logging_level = config.scrapyd().get('logging_level', 'INFO')
+setup_logging(logging_level)
 import uuid
-
 from flask import Flask, request, Response, jsonify
 from flask_basicauth import BasicAuth
 from natsort import natsort_keygen, ns
 
-from .config_loader import config
 
 app = Flask(__name__)
 repository = (config.repository_cls())(config)
 launcher = (config.launcher_cls())(config)
 scrapyd_config = config.scrapyd()
+
 
 @app.get("/")
 def home():
