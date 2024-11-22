@@ -89,8 +89,6 @@ data:
     launcher     = scrapyd_k8s.launcher.K8s
     
     namespace    = default
-    
-    max_proc     = 2
 
     # This is an example spider that should work out of the box.
     # Adapt the spider config to your use-case.

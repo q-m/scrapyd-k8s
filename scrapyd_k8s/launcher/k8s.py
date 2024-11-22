@@ -36,16 +36,21 @@ class K8s:
 
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
+
+        self.scheduler = None
         self._init_resource_watcher(config)
         self.max_proc = int(config.scrapyd().get('max_proc', 4))
 
     def _init_resource_watcher(self, config):
         self.resource_watcher = ResourceWatcher(self._namespace, config)
-
         if config.joblogs() is not None:
             self.enable_joblogs(config)
         else:
             logger.debug("Job logs handling not enabled; 'joblogs' configuration section is missing.")
+        if self.max_proc is not None:
+            self.enable_k8s_scheduler(config)
+        else:
+            logger.debug("k8s scheduler not enabled; 'max_proc' configuration is missing in the scrapyd section.")
 
         # Initialize KubernetesScheduler
         self.max_proc = int(config.scrapyd().get('max_proc', 4))
@@ -66,10 +71,14 @@ class K8s:
         )
 
     def schedule(self, project, version, spider, job_id, settings, args):
-        running_jobs = self.get_running_jobs_count()
-        start_suspended = running_jobs >= self.max_proc
-        logger.info(
-            f"Scheduling job {job_id} with start_suspended={start_suspended}. Running jobs: {running_jobs}, Max procs: {self.max_proc}")
+        if self.scheduler:
+            running_jobs = self.get_running_jobs_count()
+            start_suspended = running_jobs >= self.scheduler.max_proc
+            logger.debug(
+                f"Scheduling job {job_id} with start_suspended={start_suspended}. Running jobs: {running_jobs}, Max procs: {self.scheduler.max_proc}")
+        else:
+            start_suspended = False
+            logger.debug(f"Scheduling job {job_id} without suspension. Scheduler not enabled.")
         job_name = self._k8s_job_name(project.id(), job_id)
         _settings = [i for k, v in native_stringify_dict(settings, keys_only=False).items() for i in ['-s', f"{k}={v}"]]
         _args = [i for k, v in native_stringify_dict(args, keys_only=False).items() for i in ['-a', f"{k}={v}"]]
@@ -163,7 +172,21 @@ class K8s:
         else:
             logger.warning("No storage provider configured; job logs will not be uploaded.")
 
+    def enable_k8s_scheduler(self, config):
+        try:
+            max_proc = int(self.max_proc)
+            self.scheduler = KubernetesScheduler(config, self, self.resource_watcher, max_proc)
+            logger.debug(f"KubernetesLauncher initialized with max_proc={max_proc}.")
+            self.resource_watcher.subscribe(self.scheduler.handle_pod_event)
+            logger.info("K8s scheduler started.")
+        except ValueError:
+            logger.error(f"Invalid max_proc value: {self.max_proc}. Scheduler not enabled.")
+            self.scheduler = None
+
     def unsuspend_job(self, job_id: str):
+        if not self.scheduler:
+            logger.error("Scheduler is not enabled. Cannot unsuspend jobs.")
+            return False
         job_name = self._get_job_name(job_id)
         if not job_name:
             logger.error(f"Cannot unsuspend job {job_id}: job name not found.")
@@ -176,7 +199,7 @@ class K8s:
             )
             logger.info(f"Job {job_id} unsuspended.")
             return True
-        except Exception as e:
+        except ApiException as e:
             logger.exception(f"Error unsuspending job {job_id}: {e}")
             return False
 
