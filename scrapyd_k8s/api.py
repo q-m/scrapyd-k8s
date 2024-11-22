@@ -3,8 +3,8 @@ import logging
 from .config import Config
 config = Config()
 from .logging_config import setup_logging
-logging_level = config.scrapyd().get('logging_level', 'INFO')
-setup_logging(logging_level)
+log_level = config.scrapyd().get('logging_level', 'INFO')
+setup_logging(log_level)
 import uuid
 from flask import Flask, request, Response, jsonify
 from flask_basicauth import BasicAuth
