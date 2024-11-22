@@ -2,9 +2,6 @@ import logging
 import sys
 
 def setup_logging(log_level):
-    if not log_level:
-        log_level = 'INFO'  # Default to INFO if logging_level is None
-
     level_name = str(log_level).upper()
     numeric_level = logging.getLevelName(level_name)
     if not isinstance(numeric_level, int):
