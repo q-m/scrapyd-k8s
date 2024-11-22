@@ -15,9 +15,11 @@ stick to [scrapyd's configuration](https://scrapyd.readthedocs.io/en/latest/conf
 
 The Docker and Kubernetes launchers have their own additional options.
 
-## [scrapyd] section, reconnection_attempts, backoff_time, backoff_coefficient
+## [scrapyd] section
 
-### Context
+### reconnection_attempts, backoff_time, backoff_coefficient
+
+#### Context
 The Kubernetes event watcher is used in the code as part of the joblogs feature and is also utilized for limiting the 
 number of jobs running in parallel on the cluster. Both features are not enabled by default and can be activated if you 
 choose to use them.
@@ -28,15 +30,27 @@ long-lived connections, and other factors. For this reason, a mechanism was impl
 connection to the Kubernetes API. To achieve this, three parameters were introduced: `reconnection_attempts`, 
 `backoff_time` and `backoff_coefficient`.
 
-### What are these parameters about?
+#### What are these parameters about?
 - `reconnection_attempts` - defines how many consecutive attempts will be made to reconnect if the connection fails;
 - `backoff_time` and `backoff_coefficient` - are used to gradually slow down each subsequent attempt to establish a 
 connection with the Kubernetes API, preventing the API from becoming overloaded with requests. The `backoff_time` increases 
 exponentially and is calculated as `backoff_time *= self.backoff_coefficient`.
 
-### When do I need to change it in the config file?
+#### When do I need to change it in the config file?
 Default values for these parameters are provided in the code and are tuned to an "average" cluster setting. If your network 
 requirements or other conditions are unusual, you may need to adjust these values to better suit your specific setup.
+
+### max_proc
+
+By default `max_proc` is not present in the config file but you can add it under the scrapyd section to limit the number
+of jobs that run in parallel, while other scheduled job wait for their turn to run whenever currently running job(s)
+complete the run, or are cancelled, or are failed. This feature is available for both Kubernetes and Docker.
+
+For example, you have a cluster with 0 running jobs, you schedule 20 jobs and provide `max_proc = 5` in the scrapyd section.
+Then 5 jobs start running immediately and 15 others are suspended. Whenever at least of the jobs finish running, the new
+job is added to run. The order in which jobs were scheduled is preserved.
+
+`max_proc` - a parameter you can set to limit the number of running jobs at a given moment
 
 ## project sections
 

@@ -25,13 +25,18 @@ class Docker:
 
     def __init__(self, config):
         self._docker = docker.from_env()
-        self.max_proc = int(config.scrapyd().get('max_proc', 4))
-        self._stop_event = threading.Event()
-        self._lock = threading.Lock()
+        self.max_proc = config.scrapyd().get('max_proc')
+        if self.max_proc is not None:
+            self.max_proc = int(self.max_proc)
+            self._stop_event = threading.Event()
+            self._lock = threading.Lock()
 
-        self._thread = threading.Thread(target=self._background_task, daemon=True)
-        self._thread.start()
-        logger.info("Background thread for managing Docker containers started.")
+            self._thread = threading.Thread(target=self._background_task, daemon=True)
+            self._thread.start()
+            logger.info("Background thread for managing Docker containers started.")
+        else:
+            self._thread = None
+            logger.info("Job limit not set; Docker launcher will not limit running jobs.")
 
     def _background_task(self):
         """
@@ -47,9 +52,10 @@ class Docker:
         """
         Cleanly shutdown the background thread.
         """
-        self._stop_event.set()
-        self._thread.join()
-        logger.info("Background thread for managing Docker containers stopped.")
+        if self._thread is not None:
+            self._stop_event.set()
+            self._thread.join()
+            logger.info("Background thread for managing Docker containers stopped.")
 
     def get_node_name(self):
         return socket.gethostname()
@@ -83,9 +89,15 @@ class Docker:
             mem_limit=resources.get('limits', {}).get('memory'),
             cpu_quota=_str_to_micro(resources.get('limits', {}).get('cpu'))
         )
-        running_jobs_count = self.get_running_jobs_count()
-        if running_jobs_count < self.max_proc:
-            self.start_pending_containers()
+        if self.max_proc is not None:
+            running_jobs_count = self.get_running_jobs_count()
+            if running_jobs_count < self.max_proc:
+                self.start_pending_containers()
+            else:
+                logger.info(f"Job {job_id} is pending due to max_proc limit.")
+        else:
+            c.start()
+            logger.info(f"Job {job_id} started without suspension.")
 
     def start_pending_containers(self):
         """
@@ -132,17 +144,22 @@ class Docker:
             c.kill(signal='SIG' + signal)
             logger.info(f"Killed and removed running container {c.name}.")
         # After cancelling, try to start pending containers since we might have capacity
-        self.start_pending_containers()
+        if self.max_proc is not None:
+            self.start_pending_containers()
         return prevstate
 
     def enable_joblogs(self, config, resource_watcher):
         logger.warning("Job logs are not supported when using the Docker launcher.")
 
     def get_running_jobs_count(self):
-        # Return the number of running Docker containers matching the job labels
-        label = self.LABEL_PROJECT
-        running_jobs = self._docker.containers.list(filters={'label': label, 'status': 'running'})
-        return len(running_jobs)
+        if self.max_proc is not None:
+            # Return the number of running Docker containers matching the job labels
+            label = self.LABEL_PROJECT
+            running_jobs = self._docker.containers.list(filters={'label': label, 'status': 'running'})
+            return len(running_jobs)
+        else:
+            # If job limiting is not enabled, return 0 to avoid unnecessary processing
+            return 0
 
     def _parse_job(self, c):
         state = self._docker_to_scrapyd_status(c.status)
