@@ -68,6 +68,18 @@ connection to the Kubernetes API. To achieve this, three parameters were introdu
   connection with the Kubernetes API, preventing the API from becoming overloaded with requests.
   The `backoff_time` increases exponentially and is calculated as `backoff_time *= self.backoff_coefficient`.
 
+### max_proc
+
+By default `max_proc` is not present in the config file but you can add it under the scrapyd section to limit the number
+of jobs that run in parallel, while other scheduled job wait for their turn to run whenever currently running job(s)
+complete the run, or are cancelled, or are failed. This feature is available for both Kubernetes and Docker.
+
+For example, you have a cluster with 0 running jobs, you schedule 20 jobs and provide `max_proc = 5` in the scrapyd section.
+Then 5 jobs start running immediately and 15 others are suspended. Whenever at least of the jobs finish running, the new
+job is added to run. The order in which jobs were scheduled is preserved.
+
+`max_proc` - a parameter you can set to limit the number of running jobs at a given moment
+
 #### When do I need to change it in the config file?
 
 Default values for these parameters are provided in the code and are tuned to an "average" cluster setting. If your network
