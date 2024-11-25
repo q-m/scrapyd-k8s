@@ -175,7 +175,7 @@ class K8s:
     def enable_k8s_scheduler(self, config):
         try:
             max_proc = int(self.max_proc)
-            self.scheduler = KubernetesScheduler(config, self, self.resource_watcher, max_proc)
+            self.scheduler = KubernetesScheduler(config, self, max_proc)
             logger.debug(f"KubernetesLauncher initialized with max_proc={max_proc}.")
             self.resource_watcher.subscribe(self.scheduler.handle_pod_event)
             logger.info("K8s scheduler started.")
