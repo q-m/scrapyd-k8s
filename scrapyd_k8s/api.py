@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
-import uuid
 import logging
-
+import uuid
 from flask import Flask, request, Response, jsonify
 from flask_basicauth import BasicAuth
 from natsort import natsort_keygen, ns
 
+# setup logging before anything else
 from .config import Config
-from .k8s_resource_watcher import ResourceWatcher
+from .logging import setup_logging
+config = Config()
+log_level = config.scrapyd().get('log_level', 'INFO')
+setup_logging(log_level)
 
 app = Flask(__name__)
-config = Config()
 repository = (config.repository_cls())(config)
 launcher = (config.launcher_cls())(config)
 scrapyd_config = config.scrapyd()
-logger = logging.getLogger(__name__)
+
 
 @app.get("/")
 def home():
@@ -52,10 +54,6 @@ def api_schedule():
     _version = request.form.get('_version', 'latest') # TODO allow customizing latest tag
     # any other parameter is passed as spider argument
     args = { k: v for k, v in request.form.items() if k not in ('project', 'spider', 'setting', 'jobid', 'priority', '_version') }
-    # running_jobs = launcher.get_running_jobs_count()
-    # start_suspended = running_jobs >= k8s_scheduler.max_proc
-    # logger.info(
-    #     f"Scheduling job {job_id} with start_suspended={start_suspended}. Running jobs: {running_jobs}, Max procs: {k8s_scheduler.max_proc}")
     env_config, env_secret = project.env_config(), project.env_secret()
     jobid = launcher.schedule(project, _version, spider, job_id, settings, args)
     return { 'status': 'ok', 'jobid': job_id }

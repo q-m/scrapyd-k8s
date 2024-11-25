@@ -1,5 +1,5 @@
-import threading
 import logging
+import threading
 import time
 from kubernetes import client, watch
 from typing import Callable, List
@@ -29,7 +29,6 @@ class ResourceWatcher:
             Kubernetes namespace to watch pods in.
         """
         self.namespace = namespace
-        self.reconnection_attempts = int(config.scrapyd().get('reconnection_attempts', 5))
         self.backoff_time = int(config.scrapyd().get('backoff_time', 5))
         self.backoff_coefficient = int(config.scrapyd().get('backoff_coefficient', 2))
         self.subscribers: List[Callable] = []
@@ -90,8 +89,7 @@ class ResourceWatcher:
 
         logger.info(f"Started watching pods in namespace '{self.namespace}'.")
         backoff_time = self.backoff_time
-        reconnection_attempts = self.reconnection_attempts
-        while not self._stop_event.is_set() and reconnection_attempts > 0:
+        while not self._stop_event.is_set():
             try:
                 kwargs = {
                     'namespace': self.namespace,
@@ -101,9 +99,10 @@ class ResourceWatcher:
                     kwargs['resource_version'] = resource_version
                 first_event = True
                 for event in w.stream(v1.list_namespaced_pod, **kwargs):
+                    logging.debug("Connected to the k8s API, received an event from k8s API")
                     if first_event:
                         # Reset reconnection attempts and backoff time upon successful reconnection
-                        reconnection_attempts = self.reconnection_attempts
+                        logging.debug("This is the first event in the stream in the established connection, setting reconnection attempts to default")
                         backoff_time = self.backoff_time
                         first_event = False  # Ensure this only happens once per connection
                     pod_name = event['object'].metadata.name
@@ -114,11 +113,10 @@ class ResourceWatcher:
             except (urllib3.exceptions.ProtocolError,
                     urllib3.exceptions.ReadTimeoutError,
                     urllib3.exceptions.ConnectionError) as e:
-                reconnection_attempts -= 1
                 logger.exception(f"Encountered network error: {e}")
                 logger.info(f"Retrying to watch pods after {backoff_time} seconds...")
                 time.sleep(backoff_time)
-                backoff_time *= self.backoff_coefficient
+                backoff_time = min(backoff_time*self.backoff_coefficient, 900)
             except client.ApiException as e:
                 # Resource version is too old and cannot be accessed anymore
                 if e.status == 410:
@@ -126,20 +124,18 @@ class ResourceWatcher:
                     resource_version = None
                     continue
                 else:
-                    reconnection_attempts -= 1
                     logger.exception(f"Encountered ApiException: {e}")
                     logger.info(f"Retrying to watch pods after {backoff_time} seconds...")
                     time.sleep(backoff_time)
-                    backoff_time *= self.backoff_coefficient
+                    backoff_time = min(backoff_time*self.backoff_coefficient, 900)
             except StopIteration:
                 logger.info("Watch stream ended, restarting watch.")
                 continue
             except Exception as e:
-                reconnection_attempts -= 1
                 logger.exception(f"Watcher encountered exception: {e}")
                 logger.info(f"Retrying to watch pods after {backoff_time} seconds...")
                 time.sleep(backoff_time)
-                backoff_time *= self.backoff_coefficient
+                backoff_time = min(backoff_time*self.backoff_coefficient, 900)
 
 
     def stop(self):
