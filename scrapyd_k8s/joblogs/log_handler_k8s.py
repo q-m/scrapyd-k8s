@@ -8,11 +8,19 @@ from scrapyd_k8s.object_storage import LibcloudObjectStorage
 
 logger = logging.getLogger(__name__)
 
+# Custom Exceptions
+class KubernetesJobLogHandlerError(Exception):
+    """Base exception class for KubernetesJobLogHandler."""
+
+class LogUploadError(KubernetesJobLogHandlerError):
+    """Raised when uploading logs to object storage fails."""
+
+class PodStreamingError(KubernetesJobLogHandlerError):
+    """Raised when streaming logs from a pod fails."""
+
 class KubernetesJobLogHandler:
     """
     A class to handle Kubernetes job logs by watching pods, streaming logs, and uploading them to object storage.
-
-    ...
 
     Attributes
     ----------
@@ -33,8 +41,6 @@ class KubernetesJobLogHandler:
 
     Methods
     -------
-    start():
-        Starts the pod watcher thread for job logs.
     get_last_n_lines(file_path, num_lines):
         Efficiently retrieves the last `num_lines` lines from a file.
     concatenate_and_delete_files(main_file_path, temp_file_path, block_size=6144):
@@ -43,8 +49,8 @@ class KubernetesJobLogHandler:
         Generates a unique temporary file path for storing logs of a job.
     stream_logs(job_name):
         Streams logs from a Kubernetes pod and writes them to a file.
-    watch_pods():
-        Watches Kubernetes pods and handles events such as starting log streaming or uploading logs.
+    handle_events(event):
+        Watches Kubernetes pod events and handles actions such as starting log streaming or uploading logs.
     """
     # The value was chosen to provide a balance between memory usage and the number of I/O operations
     DEFAULT_BLOCK_SIZE = 6144
@@ -140,6 +146,7 @@ class KubernetesJobLogHandler:
             logger.debug(f"Concatenated '{temp_file_path}' into '{main_file_path}' and deleted temporary file.")
         except (IOError, OSError) as e:
             logger.error(f"Failed to concatenate and delete files for job: {e}")
+            raise KubernetesJobLogHandlerError(f"Failed to concatenate and delete files: {e}") from e
 
     def make_log_filename_for_job(self, job_name):
         """
@@ -177,6 +184,11 @@ class KubernetesJobLogHandler:
         Returns
         -------
         None
+
+        Raises
+        ------
+        PodStreamingError
+            If an I/O error occurs while streaming logs or processing them.
         """
         log_lines_counter = 0
         v1 = client.CoreV1Api()
@@ -215,16 +227,32 @@ class KubernetesJobLogHandler:
                 else:
                     os.remove(temp_file_path)
                     logger.info(f"Removed temporary file '{temp_file_path}' after streaming logs for job '{job_name}'.")
-        except Exception as e:
-            logger.exception(f"Error streaming logs for job '{job_name}': {e}")
+        except (IOError, OSError) as e:
+            logger.error(f"I/O error while streaming logs for job '{job_name}': {e}")
+            raise PodStreamingError(f"I/O error while streaming logs for job '{job_name}': {e}") from e
+        except KubernetesJobLogHandlerError as e:
+            logger.error(f"Error processing logs for job '{job_name}': {e}")
+            raise PodStreamingError(f"Error processing logs for job '{job_name}': {e}") from e
+        finally:
+            w.stop()
 
     def handle_events(self, event):
         """
-        Watches Kubernetes pods and handles events such as starting log streaming or uploading logs.
+        Watches Kubernetes pod events and handles actions such as starting log streaming or uploading logs.
+
+        Parameters
+        ----------
+        event : dict
+            The event dictionary containing information about the pod event.
 
         Returns
         -------
         None
+
+        Raises
+        ------
+        KubernetesJobLogHandlerError
+            If an error occurs while handling pod events.
         """
         try:
 
@@ -255,5 +283,6 @@ class KubernetesJobLogHandler:
                         logger.info(f"Logfile not found for job '{job_id}'")
             else:
                 logger.debug(f"Other pod event type '{event['type']}' for pod '{pod.metadata.name}' - Phase: '{pod.status.phase}'")
-        except Exception as e:
-            logger.exception(f"Error watching pods in namespace '{self.namespace}': {e}")
+        except KubernetesJobLogHandlerError as e:
+            logger.error(f"Handled error in handle_events: {e}")
+            raise e
