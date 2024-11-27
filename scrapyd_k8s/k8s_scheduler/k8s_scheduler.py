@@ -1,4 +1,5 @@
 import logging
+import datetime
 
 from kubernetes.client import ApiException
 
@@ -169,11 +170,17 @@ class KubernetesScheduler:
             if not jobs:
                 logger.debug("No suspended jobs found.")
                 return None
+
+            # Assign default timestamp to jobs missing creation_timestamp
+            for job in jobs:
+                if not hasattr(job, 'metadata') or not hasattr(job.metadata, 'creation_timestamp') or not job.metadata.creation_timestamp:
+                    job.metadata.creation_timestamp = datetime.datetime.max
+                    logger.warning(
+                        f"Job {job} missing 'metadata.creation_timestamp'; assigned max timestamp.")
+
             # Sort jobs by creation timestamp to ensure FIFO order
             jobs.sort(key=lambda job: job.metadata.creation_timestamp)
             job = jobs[0]
-            if not hasattr(job, 'metadata') or not hasattr(job.metadata, 'creation_timestamp'):
-                raise AttributeError(f"Job object missing 'metadata.creation_timestamp': {job}")
             if not hasattr(job.metadata, 'labels'):
                 raise AttributeError(f"Job object missing 'metadata.labels': {job}")
             job_id = job.metadata.labels.get(self.launcher.LABEL_JOB_ID)
