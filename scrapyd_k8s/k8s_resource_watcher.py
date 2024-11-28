@@ -97,7 +97,7 @@ class ResourceWatcher:
             try:
                 kwargs = {
                     'namespace': self.namespace,
-                    'timeout_seconds': 300,
+                    'timeout_seconds': 0,
                 }
                 if resource_version:
                     kwargs['resource_version'] = resource_version
