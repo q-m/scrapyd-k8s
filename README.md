@@ -240,9 +240,9 @@ If you want to delete a version, remove the corresponding Docker image from the 
 Not supported, by design.
 If you want to delete a project, remove it from the configuration file.
 
-## Configuration
-
+## Configuration file
 This is done in the file `scrapyd_k8s.conf`, the options are explained in the [Configuration Guide](CONFIG.md).
+
 
 ## License
 
