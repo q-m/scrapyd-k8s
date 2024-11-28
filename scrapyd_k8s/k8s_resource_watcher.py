@@ -35,6 +35,7 @@ class ResourceWatcher:
         self._stop_event = threading.Event()
         self.watcher_thread = threading.Thread(target=self.watch_pods, daemon=True)
         self.watcher_thread.start()
+        self._lock = threading.Lock()
         logger.info(f"ResourceWatcher thread started for namespace '{self.namespace}'.")
 
     def subscribe(self, callback: Callable):
@@ -46,9 +47,10 @@ class ResourceWatcher:
         callback : Callable
             A function to call when an event is received.
         """
-        if callback not in self.subscribers:
-            self.subscribers.append(callback)
-            logger.debug(f"Subscriber {callback.__name__} added.")
+        with self._lock:
+            if callback not in self.subscribers:
+                self.subscribers.append(callback)
+                logger.debug(f"Subscriber {callback.__name__} added.")
 
     def unsubscribe(self, callback: Callable):
         """
@@ -59,9 +61,10 @@ class ResourceWatcher:
         callback : Callable
             The subscriber function to remove.
         """
-        if callback in self.subscribers:
-            self.subscribers.remove(callback)
-            logger.debug(f"Subscriber {callback.__name__} removed.")
+        with self._lock:
+            if callback in self.subscribers:
+                self.subscribers.remove(callback)
+                logger.debug(f"Subscriber {callback.__name__} removed.")
 
     def notify_subscribers(self, event: dict):
         """
@@ -72,11 +75,12 @@ class ResourceWatcher:
         event : dict
             The Kubernetes event data.
         """
-        for subscriber in self.subscribers:
-            try:
-                subscriber(event)
-            except Exception as e:
-                logger.exception(f"Error notifying subscriber {subscriber.__name__}: {e}")
+        with self._lock:
+            for subscriber in self.subscribers:
+                try:
+                    subscriber(event)
+                except Exception as e:
+                    logger.exception(f"Error notifying subscriber {subscriber.__name__}: {e}")
 
     def watch_pods(self):
         """
