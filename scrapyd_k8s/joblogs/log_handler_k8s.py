@@ -22,8 +22,6 @@ class KubernetesJobLogHandler:
         Configuration object containing settings for job logs and storage.
     watcher_threads : dict
         Dictionary to keep track of watcher threads for each pod.
-    pod_tmp_mapping : dict
-        Mapping of pod names to their temporary log file paths.
     namespace : str
         Kubernetes namespace to watch pods in.
     num_lines_to_check : int
@@ -60,10 +58,36 @@ class KubernetesJobLogHandler:
         """
         self.config = config
         self.watcher_threads = {}
-        self.pod_tmp_mapping = {}
         self.namespace = config.namespace()
         self.num_lines_to_check = int(config.joblogs().get('num_lines_to_check', 0))
         self.object_storage_provider = LibcloudObjectStorage(self.config)
+
+    def get_existing_log_filename(self, job_name):
+        """
+        Retrieves the existing temporary log file path for a job without creating a new one.
+
+        Parameters
+        ----------
+        job_name : str
+            Name of the Kubernetes job or pod.
+
+        Returns
+        -------
+        str or None
+            Path to the existing temporary log file for the given job, or None if no such file exists.
+        """
+        temp_dir = tempfile.gettempdir()
+        app_temp_dir = os.path.join(temp_dir, 'job_logs')
+
+        if not os.path.isdir(app_temp_dir):
+            return None
+
+        # Check for existing files matching the job_name
+        for filename in os.listdir(app_temp_dir):
+            if filename.startswith(f"{job_name}_logs_") and filename.endswith(".txt"):
+                return os.path.join(app_temp_dir, filename)
+
+        return None
 
     def get_last_n_lines(self, file_path, num_lines):
         """
@@ -155,14 +179,15 @@ class KubernetesJobLogHandler:
         str
             Path to the temporary log file for the given job.
         """
-        if self.pod_tmp_mapping.get(job_name) is not None:
-            return self.pod_tmp_mapping[job_name]
+        existing_file = self.get_existing_log_filename(job_name)
+        if existing_file:
+            return existing_file
+        # Create a new log file if no existing file is found
         temp_dir = tempfile.gettempdir()
         app_temp_dir = os.path.join(temp_dir, 'job_logs')
         os.makedirs(app_temp_dir, exist_ok=True)
         fd, path = tempfile.mkstemp(prefix=f"{job_name}_logs_", suffix=".txt", dir=app_temp_dir)
         os.close(fd)
-        self.pod_tmp_mapping[job_name] = path
         return path
 
     def stream_logs(self, job_name):
@@ -245,7 +270,7 @@ class KubernetesJobLogHandler:
                         )
                         self.watcher_threads[thread_name].start()
                 elif pod.status.phase in ['Succeeded', 'Failed']:
-                    log_filename = self.pod_tmp_mapping.get(pod_name)
+                    log_filename = self.get_existing_log_filename(pod_name)
                     if log_filename is not None and os.path.isfile(log_filename) and os.path.getsize(log_filename) > 0:
                         if self.object_storage_provider.object_exists(job_id):
                             logger.info(f"Log file for job '{job_id}' already exists in storage.")
