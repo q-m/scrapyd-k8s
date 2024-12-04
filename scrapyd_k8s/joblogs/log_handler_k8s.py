@@ -78,7 +78,6 @@ class KubernetesJobLogHandler:
         """
         temp_dir = tempfile.gettempdir()
         app_temp_dir = os.path.join(temp_dir, 'job_logs')
-
         if not os.path.isdir(app_temp_dir):
             return None
 
