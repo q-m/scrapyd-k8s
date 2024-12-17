@@ -104,6 +104,9 @@ data:
     requests_memory = 0.2G
     limits_cpu = 0.8
     limits_memory = 0.5G
+    
+    [joblogs]
+    logs_dir = /tmp/scrapyd_k8s_logs
 ---
 apiVersion: v1
 kind: Secret
