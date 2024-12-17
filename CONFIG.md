@@ -13,7 +13,6 @@ stick to [scrapyd's configuration](https://scrapyd.readthedocs.io/en/latest/conf
 * `username`     - Set this and `password` to enable basic authentication ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#username))
 * `password`     - Set this and `username` to enable basic authentication ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#password))
 * `log_level`    - Log level, defaults to `INFO`
-* `logs_dir`     - a directory to store log files collected on k8s cluster (implemented only for Kubernetes), if not provided there is a default value `/tmp/scrapyd_k8s_logs`. When configuring, keep in mind that in the Dockerfile the `USER` is set to `nobody` so not all directories are writable, but if you make a child directory under `/tmp` you won't encounter permission problems.
 
 The Docker and Kubernetes launchers have their own additional options.
 
@@ -45,6 +44,10 @@ See [`scrapyd_k8s.sample-k8s.conf`](scrapyd_k8s.sample-k8s.conf) for an example.
 For Kubernetes, it is important to set resource limits.
 
 TODO: explain how to set limits, with default, project and spider specificity.
+
+### [joblogs] section
+* `logs_dir`     - a directory to store log files collected on k8s cluster (implemented only for Kubernetes), if not provided there is a default value `/tmp/scrapyd_k8s_logs`. When configuring, keep in mind that in the Dockerfile the `USER` is set to `nobody` so not all directories are writable, but if you make a child directory under `/tmp` you won't encounter permission problems.
+
 
 
 ### Kubernetes API interaction

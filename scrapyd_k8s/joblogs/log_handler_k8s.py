@@ -69,7 +69,7 @@ class KubernetesJobLogHandler:
         self.watcher_threads = {}
         self.namespace = config.namespace()
         self.num_lines_to_check = int(config.joblogs().get('num_lines_to_check', 0))
-        self.logs_dir = self.config.scrapyd().get('logs_dir', '/tmp/scrapyd_k8s_logs').strip()
+        self.logs_dir = self.config.joblogs().get('logs_dir', '/tmp/scrapyd_k8s_logs').strip()
         self.object_storage_provider = LibcloudObjectStorage(self.config)
 
     def get_existing_log_filename(self, job_id):
