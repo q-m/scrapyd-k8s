@@ -12,12 +12,16 @@ class KubernetesJobLogHandler:
     """
     A class to handle Kubernetes job logs by watching pods, streaming logs, and uploading them to object storage.
 
-    ...
+    This class:
+    - Observes Kubernetes pods for job-related events.
+    - Streams logs from running pods, storing them locally.
+    - Uploads completed job logs to object storage.
+    - Retrieves and concatenates log files as needed.
 
     Attributes
     ----------
     DEFAULT_BLOCK_SIZE : int
-        Default size (in bytes) of blocks to read when retrieving the last N lines from a file.
+        Default size (in bytes) of blocks to read when retrieving lines from a file.
     config : object
         Configuration object containing settings for job logs and storage.
     watcher_threads : dict
@@ -25,24 +29,29 @@ class KubernetesJobLogHandler:
     namespace : str
         Kubernetes namespace to watch pods in.
     num_lines_to_check : int
-        Number of lines to check for matching logs when resuming log streaming.
+        Number of lines to check from the end of the existing log file to avoid duplicates.
     object_storage_provider : LibcloudObjectStorage
         Instance of the object storage provider for uploading logs.
 
     Methods
     -------
-    start():
-        Starts the pod watcher thread for job logs.
+    get_existing_log_filename(job_name):
+        Retrieves an existing temporary log file path for a given job name.
+
     get_last_n_lines(file_path, num_lines):
         Efficiently retrieves the last `num_lines` lines from a file.
+
     concatenate_and_delete_files(main_file_path, temp_file_path, block_size=6144):
         Concatenates a temporary file to the main log file and deletes the temporary file.
+
     make_log_filename_for_job(job_name):
-        Generates a unique temporary file path for storing logs of a job.
+        Ensures a log file exists for a given job and returns its path.
+
     stream_logs(job_name):
-        Streams logs from a Kubernetes pod and writes them to a file.
-    watch_pods():
-        Watches Kubernetes pods and handles events such as starting log streaming or uploading logs.
+        Streams logs from a Kubernetes pod corresponding to the given job name and writes them to a file.
+
+    handle_events(event):
+        Processes Kubernetes pod events to start log streaming or upload logs when pods complete.
     """
     # The value was chosen to provide a balance between memory usage and the number of I/O operations
     DEFAULT_BLOCK_SIZE = 6144
@@ -60,6 +69,7 @@ class KubernetesJobLogHandler:
         self.watcher_threads = {}
         self.namespace = config.namespace()
         self.num_lines_to_check = int(config.joblogs().get('num_lines_to_check', 0))
+        self.logs_dir = self.config.scrapyd().get('logs_dir', '/tmp/scrapyd_k8s_logs').strip()
         self.object_storage_provider = LibcloudObjectStorage(self.config)
 
     def get_existing_log_filename(self, job_name):
@@ -69,23 +79,16 @@ class KubernetesJobLogHandler:
         Parameters
         ----------
         job_name : str
-            Name of the Kubernetes job or pod.
+            Name of the Kubernetes job or pod, which is also the name of the log file.
 
         Returns
         -------
         str or None
             Path to the existing temporary log file for the given job, or None if no such file exists.
         """
-        temp_dir = tempfile.gettempdir()
-        app_temp_dir = os.path.join(temp_dir, 'job_logs')
-        if not os.path.isdir(app_temp_dir):
-            return None
-
-        # Check for existing files matching the job_name
-        for filename in os.listdir(app_temp_dir):
-            if filename.startswith(f"{job_name}_logs_") and filename.endswith(".txt"):
-                return os.path.join(app_temp_dir, filename)
-
+        log_file_path = os.path.join(self.logs_dir, f"{job_name}.txt")
+        if os.path.isfile(log_file_path):
+            return log_file_path
         return None
 
     def get_last_n_lines(self, file_path, num_lines):
@@ -166,28 +169,32 @@ class KubernetesJobLogHandler:
 
     def make_log_filename_for_job(self, job_name):
         """
-        Generates a unique temporary file path for storing logs of a job.
+            Creates a log file path for a job, using the job name as the file name or returns a path to an existing file.
 
-        Parameters
-        ----------
-        job_name : str
-            Name of the Kubernetes job or pod.
+            Parameters
+            ----------
+            job_name : str
+                Name of the Kubernetes job.
 
-        Returns
-        -------
-        str
-            Path to the temporary log file for the given job.
+            Returns
+            -------
+            str
+                Path to the temporary log file for the given job.
         """
-        existing_file = self.get_existing_log_filename(job_name)
-        if existing_file:
-            return existing_file
-        # Create a new log file if no existing file is found
-        temp_dir = tempfile.gettempdir()
-        app_temp_dir = os.path.join(temp_dir, 'job_logs')
-        os.makedirs(app_temp_dir, exist_ok=True)
-        fd, path = tempfile.mkstemp(prefix=f"{job_name}_logs_", suffix=".txt", dir=app_temp_dir)
-        os.close(fd)
-        return path
+
+        if not os.path.isdir(self.logs_dir):
+            os.makedirs(self.logs_dir)
+
+        log_file_path = os.path.join(self.logs_dir, f"{job_name}.txt")
+        if os.path.exists(log_file_path):
+            return log_file_path
+
+        with open(log_file_path, 'w') as file:
+            pass
+
+        return log_file_path
+
+
 
     def stream_logs(self, job_name):
         """
