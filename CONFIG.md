@@ -45,6 +45,10 @@ For Kubernetes, it is important to set resource limits.
 
 TODO: explain how to set limits, with default, project and spider specificity.
 
+### [joblogs] section
+* `logs_dir`     - a directory to store log files collected on k8s cluster (implemented only for Kubernetes). When configuring, keep in mind that in the Dockerfile the `USER` is set to `nobody` so not all directories are writable, but if you make a child directory under `/tmp` you won't encounter permission problems.
+
+
 
 ### Kubernetes API interaction
 
