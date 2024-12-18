@@ -285,8 +285,14 @@ class KubernetesJobLogHandler:
                     if log_filename is not None and os.path.isfile(log_filename) and os.path.getsize(log_filename) > 0:
                         if self.object_storage_provider.object_exists(job_id):
                             logger.info(f"Log file for job '{job_id}' already exists in storage.")
+                            if os.path.exists(log_filename):
+                                os.remove(log_filename)
+                                logger.info(
+                                    f"Removed local log file '{log_filename}' since it already exists in storage.")
                         else:
                             self.object_storage_provider.upload_file(log_filename)
+                            os.remove(log_filename)
+                            logger.info(f"Removed local log file '{log_filename}' after successful upload.")
                     else:
                         logger.info(f"Logfile not found for job '{job_id}'")
             else:
