@@ -13,6 +13,8 @@ spec:
       labels:
         app.kubernetes.io/name: scrapyd-k8s
     spec:
+      securityContext:
+        fsGroup: 1000
       serviceAccountName: scrapyd-k8s
       containers:
         - image: ghcr.io/q-m/scrapyd-k8s:latest
@@ -106,7 +108,7 @@ data:
     limits_memory = 0.5G
     
     [joblogs]
-    logs_dir = /tmp/scrapyd_k8s_logs
+    logs_dir = /data/scrapyd_k8s_logs
 ---
 apiVersion: v1
 kind: Secret
