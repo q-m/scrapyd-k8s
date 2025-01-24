@@ -108,7 +108,7 @@ data:
     limits_memory = 0.5G
     
     [joblogs]
-    logs_dir = /data/scrapyd_k8s_logs
+    logs_dir = /data/joblogs
 ---
 apiVersion: v1
 kind: Secret
@@ -118,18 +118,6 @@ metadata:
     app.kubernetes.io/name: spider-example
 stringData:
   FOO_API_KEY: "1234567890abcdef"
-#---
-#apiVersion: v1
-#kind: PersistentVolume
-#metadata:
-#  name: pv-volume
-#spec:
-#  capacity:
-#    storage: 5Gi
-#  accessModes:
-#    - ReadWriteOnce
-#  hostPath:
-#    path: "/mnt/data"
 #---
 #apiVersion: v1
 #kind: PersistentVolumeClaim
