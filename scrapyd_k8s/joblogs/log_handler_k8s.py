@@ -266,15 +266,14 @@ class KubernetesJobLogHandler:
                     self.concatenate_and_delete_files(log_file_path, temp_file_path)
                 else:
                     os.remove(temp_file_path)
-                    logger.info(f"Removed temporary file '{temp_file_path}' after streaming logs for job '{job_name}'.")
+                    logger.info(f"Removed temporary file '{temp_file_path}' after streaming logs for job '{job_id}'.")
         except (IOError, OSError) as e:
-            logger.error(f"I/O error while streaming logs for job '{job_name}': {e}")
-            raise PodStreamingError(f"I/O error while streaming logs for job '{job_name}': {e}") from e
+            logger.error(f"I/O error while streaming logs for job '{job_id}': {e}")
+            raise PodStreamingError(f"I/O error while streaming logs for job '{job_id}': {e}") from e
         except KubernetesJobLogHandlerError as e:
-            logger.error(f"Error processing logs for job '{job_name}': {e}")
-            raise PodStreamingError(f"Error processing logs for job '{job_name}': {e}") from e
-        finally:
-            w.stop()
+            logger.error(f"Error processing logs for job '{job_id}': {e}")
+            raise PodStreamingError(f"Error processing logs for job '{job_id}': {e}") from e
+
     def handle_events(self, event):
         """
         Watches Kubernetes pod events and handles actions such as starting log streaming or uploading logs.

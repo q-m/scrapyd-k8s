@@ -4,6 +4,7 @@ import datetime
 from kubernetes.client import ApiException
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class KubernetesScheduler:
     """
@@ -35,6 +36,7 @@ class KubernetesScheduler:
                 raise TypeError(f"max_proc must be an integer, got {type(max_proc).__name__}")
             self.max_proc = max_proc
             self.namespace = config.namespace()
+            logger.info("Scheduler feature is initialized")
         except TypeError as e:
             logger.exception(f"TypeError during KubernetesScheduler initialization: {e}")
             raise
@@ -82,7 +84,7 @@ class KubernetesScheduler:
                 return
 
             # If a pod has terminated (Succeeded or Failed), we may have capacity to unsuspend jobs
-            if pod_phase in ('Succeeded', 'Failed') and event_type in ('MODIFIED', 'DELETED'):
+            if pod_phase in ('Succeeded', 'Failed'):
                 logger.info(f"Pod {pod_name} has completed with phase {pod_phase}. Checking for suspended jobs.")
                 self.check_and_unsuspend_jobs()
             else:

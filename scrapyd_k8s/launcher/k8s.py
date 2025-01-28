@@ -18,6 +18,7 @@ from ..utils import native_stringify_dict
 from scrapyd_k8s.joblogs import KubernetesJobLogHandler
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class K8s:
 
@@ -27,6 +28,7 @@ class K8s:
 
     def __init__(self, config):
         self._namespace = config.scrapyd().get('namespace', 'default')
+        self.max_proc = config.scrapyd().get('max_proc')
         self._pull_secret = config.scrapyd().get('pull_secret')
         # TODO figure out where to put Kubernetes initialisation
         try:
@@ -37,9 +39,8 @@ class K8s:
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
 
-        self.scheduler = None
+        self.k8s_scheduler = None
         self._init_resource_watcher(config)
-        self.max_proc = int(config.scrapyd().get('max_proc', 4))
 
     def _init_resource_watcher(self, config):
         self.resource_watcher = ResourceWatcher(self._namespace, config)
@@ -50,12 +51,7 @@ class K8s:
         if self.max_proc is not None:
             self.enable_k8s_scheduler(config)
         else:
-            logger.debug("k8s scheduler not enabled; 'max_proc' configuration is missing in the scrapyd section.")
-
-        # Initialize KubernetesScheduler
-        self.max_proc = int(config.scrapyd().get('max_proc', 4))
-        self.k8s_scheduler = KubernetesScheduler(config, self, self.resource_watcher, self.max_proc)
-        logger.debug(f"KubernetesLauncher initialized with max_proc={self.max_proc}.")
+            logger.debug("k8s scheduler not enabled; jobs run directly after scheduling.")
 
     def get_node_name(self):
         deployment = os.getenv('MY_DEPLOYMENT_NAME', 'default')
@@ -71,11 +67,11 @@ class K8s:
         )
 
     def schedule(self, project, version, spider, job_id, settings, args):
-        if self.scheduler:
+        if self.k8s_scheduler:
             running_jobs = self.get_running_jobs_count()
-            start_suspended = running_jobs >= self.scheduler.max_proc
+            start_suspended = running_jobs >= self.k8s_scheduler.max_proc
             logger.debug(
-                f"Scheduling job {job_id} with start_suspended={start_suspended}. Running jobs: {running_jobs}, Max procs: {self.scheduler.max_proc}")
+                f"Scheduling job {job_id} with start_suspended={start_suspended}. Running jobs: {running_jobs}, Max procs: {self.k8s_scheduler.max_proc}")
         else:
             start_suspended = False
             logger.debug(f"Scheduling job {job_id} without suspension. Scheduler not enabled.")
@@ -175,16 +171,16 @@ class K8s:
     def enable_k8s_scheduler(self, config):
         try:
             max_proc = int(self.max_proc)
-            self.scheduler = KubernetesScheduler(config, self, max_proc)
+            self.k8s_scheduler = KubernetesScheduler(config, self, max_proc)
             logger.debug(f"KubernetesLauncher initialized with max_proc={max_proc}.")
-            self.resource_watcher.subscribe(self.scheduler.handle_pod_event)
+            self.resource_watcher.subscribe(self.k8s_scheduler.handle_pod_event)
             logger.info("K8s scheduler started.")
         except ValueError:
             logger.error(f"Invalid max_proc value: {self.max_proc}. Scheduler not enabled.")
-            self.scheduler = None
+            self.k8s_scheduler = None
 
     def unsuspend_job(self, job_id: str):
-        if not self.scheduler:
+        if not self.k8s_scheduler:
             logger.error("Scheduler is not enabled. Cannot unsuspend jobs.")
             return False
         job_name = self._get_job_name(job_id)
