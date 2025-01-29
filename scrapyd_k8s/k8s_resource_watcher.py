@@ -4,7 +4,6 @@ import time
 from kubernetes import client, watch
 from typing import Callable, List
 import urllib3
-
 logger = logging.getLogger(__name__)
 
 class ResourceWatcher:
@@ -18,7 +17,6 @@ class ResourceWatcher:
     subscribers : List[Callable]
         List of subscriber callback functions to notify on events.
     """
-
     def __init__(self, namespace, config):
         """
         Initializes the ResourceWatcher.
@@ -51,7 +49,6 @@ class ResourceWatcher:
             if callback not in self.subscribers:
                 self.subscribers.append(callback)
                 logger.debug(f"Subscriber {callback.__name__} added.")
-
     def unsubscribe(self, callback: Callable):
         """
         Removes a subscriber callback.
@@ -65,7 +62,6 @@ class ResourceWatcher:
             if callback in self.subscribers:
                 self.subscribers.remove(callback)
                 logger.debug(f"Subscriber {callback.__name__} removed.")
-
     def notify_subscribers(self, event: dict):
         """
         Notifies all subscribers about an event.
@@ -140,7 +136,6 @@ class ResourceWatcher:
                 logger.info(f"Retrying to watch pods after {backoff_time} seconds...")
                 time.sleep(backoff_time)
                 backoff_time = min(backoff_time*self.backoff_coefficient, 900)
-
 
     def stop(self):
         """
