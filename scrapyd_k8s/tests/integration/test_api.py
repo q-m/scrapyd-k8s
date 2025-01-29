@@ -44,7 +44,7 @@ def test_listversions_ok():
     assert_response_ok(response)
 
     json = response.json()
-    assert set(AVAIL_VERSIONS).issubset(set(json['versions']))
+    assert json['versions'] == AVAIL_VERSIONS
     assert 'node_name' in json
 
 def test_listversions_project_missing():
