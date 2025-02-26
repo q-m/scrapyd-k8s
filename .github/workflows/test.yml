@@ -53,8 +53,7 @@ jobs:
             cfg=`echo "$test" | sed 's/\.py$/.conf/'`
             python -m scrapyd_k8s -c scrapyd_k8s.sample-docker.conf -c "$cfg" &
             # wait for scrapyd-k8s to become ready
-            while ! nc -q 1 localhost 6800 </dev/null; do sleep 1; done
-            curl --retry 5 --retry-delay 2 --retry-all-errors http://localhost:6800/daemonstatus.json
+            curl --retry 20 --retry-delay 2 --retry-all-errors http://localhost:6800/daemonstatus.json
             # run test
             pytest -vv --color=yes "$test"
             # stop scrapyd-k8s again
@@ -108,11 +107,23 @@ jobs:
           # don't start deployment just yet, as we want to run it with test-specific configuration
           kubectl scale --replicas=0 deploy/scrapyd-k8s
           # add second configuration file for test-specific configuration
-          kubectl patch deploy scrapyd-k8s --type=json -p='[' \
-            '{"op":"add", "path":"/spec/template/spec/containers/1/volumeMounts", "value":{"name":"scrapyd-k8s-testcfg","mountPath":"/opt/app/scrapyd_k8s.test.conf","readOnly":true,"subPath":"scrapyd_k8s.test.conf"}},' \
-            '{"op":"add", "path":"/spec/template/spec/volumes", "value":{"configMap":{"name":"scrapyd-k8s-testcfg"},"name":"scrapyd-k8s-testcfg"}},' \
-            '{"op":"replace", "path":"/spec/template/spec/containers/1/command", "value":["python3", "-m", "scrapyd_k8s", "-c", "scrapyd_k8s.conf", "-c", "scrapyd_k8s.test.conf"]}' \
-          ']'
+          kubectl patch deploy scrapyd-k8s --type=json -p='[
+            {
+              "op": "add",
+              "path": "/spec/template/spec/containers/1/volumeMounts",
+              "value": { "name": "scrapyd-k8s-testcfg", "mountPath": "/opt/app/scrapyd_k8s.test.conf", "readOnly": true, "subPath": "scrapyd_k8s.test.conf" }
+            },
+            {
+              "op": "add",
+              "path": "/spec/template/spec/volumes",
+              "value": { "configMap": { "name": "scrapyd-k8s-testcfg" }, "name": "scrapyd-k8s-testcfg" }
+            },
+            {
+              "op": "replace",
+              "path": "/spec/template/spec/containers/1/command",
+              "value": ["python3", "-m", "scrapyd_k8s", "-c", "scrapyd_k8s.conf", "-c", "scrapyd_k8s.test.conf"]
+            }
+          ]'
 
       - name: Run tests
         run: |
@@ -176,8 +187,7 @@ jobs:
             [ -e "$cfg" ] || cfg=/dev/null
             python -m scrapyd_k8s -c scrapyd_k8s.sample-k8s.conf -c "$cfg" &
             # wait for scrapyd-k8s to become ready
-            while ! nc -q 1 localhost 6800 </dev/null; do sleep 1; done
-            curl --retry 5 --retry-delay 2 --retry-all-errors http://localhost:6800/daemonstatus.json
+            curl --retry 20 --retry-delay 2 --retry-all-errors http://localhost:6800/daemonstatus.json
             # run test
             pytest -vv --color=yes "$test"
             # stop scrapyd-k8s again
