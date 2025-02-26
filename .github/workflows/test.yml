@@ -1,4 +1,4 @@
-name: Scapyd-k8s CI
+name: Scrapyd-k8s CI
 on:
   push:
     branches:
@@ -46,15 +46,20 @@ jobs:
       - name: Pull example spider
         run: docker pull ghcr.io/q-m/scrapyd-k8s-spider-example
 
-      - name: Run scrapyd-k8s
-        run: |
-          cp scrapyd_k8s.sample-docker.conf scrapyd_k8s.conf
-          python -m scrapyd_k8s &
-          while ! nc -q 1 localhost 6800 </dev/null; do sleep 1; done
-          curl http://localhost:6800/daemonstatus.json
-
       - name: Run tests
-        run: pytest -vv --color=yes scrapyd_k8s/tests/integration/
+        run: |
+          for test in scrapyd_k8s/tests/integration/*.py; do
+            # run scrapyd-k8s with test-specific configuration file
+            cfg=`echo "$test" | sed 's/\.py$/.conf/'`
+            python -m scrapyd_k8s -c scrapyd_k8s.sample-docker.conf -c "$cfg" &
+            # wait for scrapyd-k8s to become ready
+            while ! nc -q 1 localhost 6800 </dev/null; do sleep 1; done
+            curl --retry 5 --retry-delay 2 --retry-all-errors http://localhost:6800/daemonstatus.json
+            # run test
+            pytest -vv --color=yes "$test"
+            # stop scrapyd-k8s again
+            kill %1
+          done
 
   test-manifest:
     container:
@@ -100,17 +105,38 @@ jobs:
           sed -i 's/\(image:\s*\)ghcr\.io\/q-m\/scrapyd-k8s:/\1test:/' kubernetes.yaml
           sed -i 's/\(type:\s*\)ClusterIP/\1NodePort/' kubernetes.yaml
           kubectl create -f kubernetes.yaml
-          # and wait for scrapyd-k8s to become ready
-          kubectl wait --for=condition=Available deploy/scrapyd-k8s --timeout=60s
-          curl --retry 10 --retry-delay 2 --retry-all-errors `minikube service scrapyd-k8s --url`/daemonstatus.json
+          # don't start deployment just yet, as we want to run it with test-specific configuration
+          kubectl scale --replicas=0 deploy/scrapyd-k8s
+          # add second configuration file for test-specific configuration
+          kubectl patch deploy scrapyd-k8s --type=json -p='[' \
+            '{"op":"add", "path":"/spec/template/spec/containers/1/volumeMounts", "value":{"name":"scrapyd-k8s-testcfg","mountPath":"/opt/app/scrapyd_k8s.test.conf","readOnly":true,"subPath":"scrapyd_k8s.test.conf"}},' \
+            '{"op":"add", "path":"/spec/template/spec/volumes", "value":{"configMap":{"name":"scrapyd-k8s-testcfg"},"name":"scrapyd-k8s-testcfg"}},' \
+            '{"op":"replace", "path":"/spec/template/spec/containers/1/command", "value":["python3", "-m", "scrapyd_k8s", "-c", "scrapyd_k8s.conf", "-c", "scrapyd_k8s.test.conf"]}' \
+          ']'
 
       - name: Run tests
         run: |
-          TEST_WITH_K8S=1 \
-          TEST_BASE_URL=`minikube service scrapyd-k8s --url` \
-          TEST_MAX_WAIT=60 \
-          TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'` \
-          pytest -vv --color=yes scrapyd_k8s/tests/integration/
+          # setup for in-cluster k8s
+          TEST_WITH_K8S=1
+          TEST_BASE_URL=`minikube service scrapyd-k8s --url`
+          TEST_MAX_WAIT=60
+          TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'`
+          # for each integration test file
+          for test in scrapyd_k8s/tests/integration/*.py; do
+            # run scrapyd-k8s with test-specific configuration file
+            cfg=`echo "$test" | sed 's/\.py$/.conf/'`
+            kubectl create cm scrapyd-k8s-testcfg --from-file=scrapyd_k8s.test.conf="$cfg"
+            kubectl scale --replicas=1 deploy/scrapyd-k8s
+            # wait for scrapyd-k8s to become ready
+            kubectl wait --for=condition=Available deploy/scrapyd-k8s --timeout=60s
+            curl --retry 10 --retry-delay 2 --retry-all-errors `minikube service scrapyd-k8s --url`/daemonstatus.json
+            # run test
+            pytest -vv --color=yes "$test"
+            # stop scrapyd-k8s and delete test-specific configmap
+            kubectl scale --replicas=0 deploy/scrapyd-k8s
+            kubectl delete cm scrapyd-k8s-testcfg
+          done
+
   test-k8s:
     container:
     runs-on: ubuntu-latest
@@ -139,16 +165,21 @@ jobs:
           # already pull image so we don't have to wait for it later
           minikube image pull ghcr.io/q-m/scrapyd-k8s-spider-example:latest
 
-      - name: Run scrapyd-k8s
-        run: |
-          cp scrapyd_k8s.sample-k8s.conf scrapyd_k8s.conf
-          python -m scrapyd_k8s &
-          while ! nc -q 1 localhost 6800 </dev/null; do sleep 1; done
-          curl http://localhost:6800/daemonstatus.json
-
       - name: Run tests
         run: |
-          TEST_WITH_K8S=1 \
-          TEST_MAX_WAIT=60 \
-          TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'` \
-          pytest -vv --color=yes scrapyd_k8s/tests/integration/
+          TEST_WITH_K8S=1
+          TEST_MAX_WAIT=60
+          TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'`
+          for test in scrapyd_k8s/tests/integration/*.py; do
+            # run scrapyd-k8s with test-specific configuration file
+            cfg=`echo "$test" | sed 's/\.py$/.conf/'`
+            [ -e "$cfg" ] || cfg=/dev/null
+            python -m scrapyd_k8s -c scrapyd_k8s.sample-k8s.conf -c "$cfg" &
+            # wait for scrapyd-k8s to become ready
+            while ! nc -q 1 localhost 6800 </dev/null; do sleep 1; done
+            curl --retry 5 --retry-delay 2 --retry-all-errors http://localhost:6800/daemonstatus.json
+            # run test
+            pytest -vv --color=yes "$test"
+            # stop scrapyd-k8s again
+            kill %1
+          done
