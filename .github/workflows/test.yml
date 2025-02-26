@@ -54,7 +54,7 @@ jobs:
             cfg=`echo "$test" | sed 's/\.py$/.conf/'`
             python -m scrapyd_k8s -c scrapyd_k8s.sample-docker.conf -c "$cfg" &
             # wait for scrapyd-k8s to become ready
-            curl --retry 20 --retry-delay 2 --retry-all-errors http://localhost:6800/daemonstatus.json
+            sleep 1; curl --retry 20 --retry-delay 2 --retry-all-errors http://localhost:6800/daemonstatus.json
             # run test
             pytest -vv --color=yes "$test"
             # stop scrapyd-k8s again
@@ -190,7 +190,7 @@ jobs:
             [ -e "$cfg" ] || cfg=/dev/null
             python -m scrapyd_k8s -c scrapyd_k8s.sample-k8s.conf -c "$cfg" &
             # wait for scrapyd-k8s to become ready
-            curl --retry 20 --retry-delay 2 --retry-all-errors http://localhost:6800/daemonstatus.json
+            sleep 1; curl --retry 20 --retry-delay 2 --retry-all-errors http://localhost:6800/daemonstatus.json
             # run test
             pytest -vv --color=yes "$test"
             # stop scrapyd-k8s again
