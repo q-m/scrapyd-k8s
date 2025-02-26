@@ -13,7 +13,7 @@ def test_root_incorrect_auth():
     session = requests.Session()
     session.auth = ('nonexistant', 'incorrect')
     response = session.get(BASE_URL)
-    assert response.status_code == 403
+    assert response.status_code == 401
     assert 'scrapyd-k8s' not in response.text
 
 def test_root_correct_auth():
@@ -37,14 +37,14 @@ def test_daemonstatus_no_auth():
 def test_daemonstatus_incorrect_auth():
     session = requests.Session()
     session.auth = ('nonexistant', 'incorrect')
-    response = requests.get(BASE_URL + '/daemonstatus.json')
-    assert response.status_code == 403
+    response = session.get(BASE_URL + '/daemonstatus.json')
+    assert response.status_code == 401
     assert 'ok' not in response.text
 
 def test_daemonstatus_correct_auth():
     session = requests.Session()
     session.auth = ('foo', 'secret') # needs to match test_auth.conf
-    response = requests.get(BASE_URL + '/daemonstatus.json')
+    response = session.get(BASE_URL + '/daemonstatus.json')
     assert response.status_code == 200
     assert response.headers['Content-Type'] == 'application/json'
     assert response.json()['status'] == 'ok'
