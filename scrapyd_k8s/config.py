@@ -2,21 +2,42 @@ import re
 from configparser import ConfigParser
 from importlib import import_module
 
+from .logging import setup_logging
+
 class Config:
-    def __init__(self, file='scrapyd_k8s.conf'):
+    def __init__(self):
         self._config = ConfigParser(empty_lines_in_values=False)
-        self._config.read(file)
+        self._projects = []
+        self._launcher = None
+        self._repository = None
+
+    def read(self, files=['scrapyd_k8s.conf']):
+        self._config.read(files)
+        self._update()
+
+    def _update(self):
         self._projects = [s[8:] for s in self._config.sections() if re.match(r'^project\.[^\.]+$', s)]
+        setup_logging(self.scrapyd().get('log_level', 'INFO'))
 
     def scrapyd(self):
         return self._config['scrapyd']
 
-    def repository_cls(self):
+    def repository(self):
+        if not self._repository:
+            self._repository = (self._repository_cls())(self)
+        return self._repository
+
+    def _repository_cls(self):
         repo = self._config['scrapyd'].get('repository', 'scrapyd_k8s.repository.Remote')
         pkg, cls = repo.rsplit('.', 1)
         return getattr(import_module(pkg), cls)
 
-    def launcher_cls(self):
+    def launcher(self):
+        if not self._launcher:
+            self._launcher = (self._launcher_cls())(self)
+        return self._launcher
+
+    def _launcher_cls(self):
         repo = self._config['scrapyd'].get('launcher', 'scrapyd_k8s.launcher.K8s')
         pkg, cls = repo.rsplit('.', 1)
         return getattr(import_module(pkg), cls)
