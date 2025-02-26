@@ -49,6 +49,7 @@ jobs:
       - name: Run tests
         run: |
           for test in scrapyd_k8s/tests/integration/*.py; do
+            echo; echo "# $test"
             # run scrapyd-k8s with test-specific configuration file
             cfg=`echo "$test" | sed 's/\.py$/.conf/'`
             python -m scrapyd_k8s -c scrapyd_k8s.sample-docker.conf -c "$cfg" &
@@ -134,6 +135,7 @@ jobs:
           TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'`
           # for each integration test file
           for test in scrapyd_k8s/tests/integration/*.py; do
+            echo; echo "# $test"
             # run scrapyd-k8s with test-specific configuration file
             cfg=`echo "$test" | sed 's/\.py$/.conf/'`
             kubectl create cm scrapyd-k8s-testcfg --from-file=scrapyd_k8s.test.conf="$cfg"
@@ -182,6 +184,7 @@ jobs:
           TEST_MAX_WAIT=60
           TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'`
           for test in scrapyd_k8s/tests/integration/*.py; do
+            echo; echo "# $test"
             # run scrapyd-k8s with test-specific configuration file
             cfg=`echo "$test" | sed 's/\.py$/.conf/'`
             [ -e "$cfg" ] || cfg=/dev/null
