@@ -111,17 +111,17 @@ jobs:
           kubectl patch deploy scrapyd-k8s --type=json -p='[
             {
               "op": "add",
-              "path": "/spec/template/spec/containers/1/volumeMounts",
-              "value": { "name": "scrapyd-k8s-testcfg", "mountPath": "/opt/app/scrapyd_k8s.test.conf", "readOnly": true, "subPath": "scrapyd_k8s.test.conf" }
-            },
-            {
-              "op": "add",
-              "path": "/spec/template/spec/volumes",
+              "path": "/spec/template/spec/volumes/-",
               "value": { "configMap": { "name": "scrapyd-k8s-testcfg" }, "name": "scrapyd-k8s-testcfg" }
             },
             {
+              "op": "add",
+              "path": "/spec/template/spec/containers/0/volumeMounts/-",
+              "value": { "name": "scrapyd-k8s-testcfg", "mountPath": "/opt/app/scrapyd_k8s.test.conf", "readOnly": true, "subPath": "scrapyd_k8s.test.conf" }
+            },
+            {
               "op": "replace",
-              "path": "/spec/template/spec/containers/1/command",
+              "path": "/spec/template/spec/containers/0/command",
               "value": ["python3", "-m", "scrapyd_k8s", "-c", "scrapyd_k8s.conf", "-c", "scrapyd_k8s.test.conf"]
             }
           ]'
