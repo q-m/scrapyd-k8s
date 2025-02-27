@@ -129,10 +129,6 @@ jobs:
       - name: Run tests
         run: |
           # setup for in-cluster k8s
-          TEST_WITH_K8S=1
-          TEST_BASE_URL=`minikube service scrapyd-k8s --url`
-          TEST_MAX_WAIT=60
-          TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'`
           # for each integration test file
           for test in scrapyd_k8s/tests/integration/test_*.py; do
             echo; echo "# $test"
@@ -144,7 +140,11 @@ jobs:
             kubectl wait --for=condition=Available deploy/scrapyd-k8s --timeout=60s
             curl --retry 10 --retry-delay 2 --retry-all-errors `minikube service scrapyd-k8s --url`/daemonstatus.json
             # run test
-            pytest -vv --color=yes "$test"
+            TEST_WITH_K8S=1 \
+              TEST_BASE_URL=`minikube service scrapyd-k8s --url` \
+              TEST_MAX_WAIT=60 \
+              TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'` \
+              pytest -vv --color=yes "$test"
             # stop scrapyd-k8s and delete test-specific configmap
             kubectl scale --replicas=0 deploy/scrapyd-k8s
             kubectl delete cm scrapyd-k8s-testcfg
@@ -180,9 +180,6 @@ jobs:
 
       - name: Run tests
         run: |
-          TEST_WITH_K8S=1
-          TEST_MAX_WAIT=60
-          TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'`
           for test in scrapyd_k8s/tests/integration/test_*.py; do
             echo; echo "# $test"
             # run scrapyd-k8s with test-specific configuration file
@@ -192,7 +189,10 @@ jobs:
             # wait for scrapyd-k8s to become ready
             sleep 1; curl --retry 20 --retry-delay 2 --retry-all-errors http://localhost:6800/daemonstatus.json
             # run test
-            pytest -vv --color=yes "$test"
+            TEST_WITH_K8S=1 \
+              TEST_MAX_WAIT=60 \
+              TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'` \
+              pytest -vv --color=yes "$test"
             # stop scrapyd-k8s again
             kill %1
           done
