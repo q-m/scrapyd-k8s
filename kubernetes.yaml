@@ -162,6 +162,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: scrapyd-k8s
+# review scrapyd_k8s/test/integration/*.k8s.sh when modifying this in the repository
 rules:
   - apiGroups: [""]
     resources: ["pods"]
@@ -174,7 +175,8 @@ rules:
     verbs: ["get"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    verbs: ["get", "list", "create", "patch", "delete"]
+    # add "patch" if you use scheduling, i.e. if you use max_proc
+    verbs: ["get", "list", "create", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

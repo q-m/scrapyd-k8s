@@ -49,7 +49,7 @@ def api_schedule():
     # any other parameter is passed as spider argument
     args = { k: v for k, v in request.form.items() if k not in ('project', 'spider', 'setting', 'jobid', 'priority', '_version') }
     env_config, env_secret = project.env_config(), project.env_secret()
-    jobid = config.launcher().schedule(project, _version, spider, job_id, settings, args, start_suspended=start_suspended)
+    jobid = config.launcher().schedule(project, _version, spider, job_id, settings, args)
     return { 'status': 'ok', 'jobid': job_id }
 
 @app.post("/cancel.json")
