@@ -133,7 +133,13 @@ def error(msg, status=200):
     return { 'status': 'error', 'message': msg }, status
 
 def enable_authentication(app, config_username, config_password):
-    basic_auth = BasicAuth(app)
+
+    # workaround for https://github.com/jpvanhal/flask-basicauth/issues/11
+    class BasicAuthExceptHealthz(BasicAuth):
+        def authenticate(self):
+            return request.path == "/healthz" or super().authenticate()
+
+    basic_auth = BasicAuthExceptHealthz(app)
     app.config["BASIC_AUTH_USERNAME"] = config_username
     app.config["BASIC_AUTH_PASSWORD"] = config_password
     app.config["BASIC_AUTH_FORCE"] = True
