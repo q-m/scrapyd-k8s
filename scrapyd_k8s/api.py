@@ -5,18 +5,10 @@ from flask import Flask, request, Response, jsonify
 from flask_basicauth import BasicAuth
 from natsort import natsort_keygen, ns
 
-# setup logging before anything else
 from .config import Config
-from .logging import setup_logging
 config = Config()
-log_level = config.scrapyd().get('log_level', 'INFO')
-setup_logging(log_level)
 
 app = Flask(__name__)
-repository = (config.repository_cls())(config)
-launcher = (config.launcher_cls())(config)
-scrapyd_config = config.scrapyd()
-
 
 @app.get("/")
 def home():
@@ -28,9 +20,9 @@ def healthz():
 
 @app.get("/daemonstatus.json")
 def api_daemonstatus():
-    jobs = list(launcher.listjobs())
+    jobs = list(config.launcher().listjobs())
     return {
-        "node_name": config.scrapyd().get("node_name", launcher.get_node_name()),
+        "node_name": config.scrapyd().get("node_name", config.launcher().get_node_name()),
         "status": "ok",
         "pending": len([j for j in jobs if j['state'] == 'pending']),
         "running": len([j for j in jobs if j['state'] == 'running']),
@@ -55,7 +47,7 @@ def api_schedule():
     # any other parameter is passed as spider argument
     args = { k: v for k, v in request.form.items() if k not in ('project', 'spider', 'setting', 'jobid', 'priority', '_version') }
     env_config, env_secret = project.env_config(), project.env_secret()
-    jobid = launcher.schedule(project, _version, spider, job_id, settings, args)
+    jobid = config.launcher().schedule(project, _version, spider, job_id, settings, args)
     return { 'status': 'ok', 'jobid': job_id }
 
 @app.post("/cancel.json")
@@ -67,7 +59,7 @@ def api_cancel():
     if not job_id:
         return error('job missing in form parameters', status=400)
     signal = request.form.get('signal', 'TERM') # TODO validate signal?
-    prevstate = launcher.cancel(project_id, job_id, signal)
+    prevstate = config.launcher().cancel(project_id, job_id, signal)
     if not prevstate:
         return error('job not found', status=404)
     return { 'status': 'ok', 'prevstate': prevstate }
@@ -84,7 +76,7 @@ def api_listversions():
     project = config.project(project_id)
     if not project:
         return error('project not found in configuration', status=404)
-    tags = repository.listtags(project.repository())
+    tags = config.repository().listtags(project.repository())
     tags = [t for t in tags if not t.startswith('sha-')]
     tags.sort(key=natsort_keygen(alg=ns.NUMAFTER))
     return { 'status': 'ok', 'versions': tags }
@@ -98,7 +90,7 @@ def api_listspiders():
     if not project:
         return error('project not found in configuration', status=404)
     _version = request.args.get('_version', 'latest') # TODO allow customizing latest tag
-    spiders = repository.listspiders(project.repository(), project_id, _version)
+    spiders = config.repository().listspiders(project.repository(), project_id, _version)
     if spiders is None:
         return error('project version not found in repository', status=404)
     return { 'status': 'ok', 'spiders': spiders }
@@ -106,7 +98,7 @@ def api_listspiders():
 @app.get("/listjobs.json")
 def api_listjobs():
     project_id = request.args.get('project')
-    jobs = launcher.listjobs(project_id)
+    jobs = config.launcher().listjobs(project_id)
     pending = [j for j in jobs if j['state'] == 'pending']
     running = [j for j in jobs if j['state'] == 'running']
     finished = [j for j in jobs if j['state'] == 'finished']
@@ -133,7 +125,7 @@ def api_delproject():
 def after_request(response: Response):
     if response.is_json:
         data = response.json
-        data["node_name"] = config.scrapyd().get("node_name", launcher.get_node_name())
+        data["node_name"] = config.scrapyd().get("node_name", config.launcher().get_node_name())
         response.data = jsonify(data).data
     return response
 
@@ -141,13 +133,21 @@ def error(msg, status=200):
     return { 'status': 'error', 'message': msg }, status
 
 def enable_authentication(app, config_username, config_password):
-    basic_auth = BasicAuth(app)
+
+    # workaround for https://github.com/jpvanhal/flask-basicauth/issues/11
+    class BasicAuthExceptHealthz(BasicAuth):
+        def authenticate(self):
+            return request.path == "/healthz" or super().authenticate()
+
+    basic_auth = BasicAuthExceptHealthz(app)
     app.config["BASIC_AUTH_USERNAME"] = config_username
     app.config["BASIC_AUTH_PASSWORD"] = config_password
     app.config["BASIC_AUTH_FORCE"] = True
     return basic_auth
 
 def run():
+    scrapyd_config = config.scrapyd()
+
     # where to listen
     host = scrapyd_config.get('bind_address', '127.0.0.1')
     port = scrapyd_config.get('http_port', '6800')
