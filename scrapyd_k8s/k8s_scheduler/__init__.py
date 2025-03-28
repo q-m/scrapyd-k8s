@@ -1,1 +1,0 @@
-from scrapyd_k8s.k8s_scheduler.k8s_scheduler import KubernetesScheduler

@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock, patch
 from kubernetes.client.rest import ApiException
-from scrapyd_k8s.k8s_scheduler.k8s_scheduler import KubernetesScheduler
+from scrapyd_k8s.launcher.k8s_scheduler import KubernetesScheduler
 
 @pytest.fixture
 def mock_config():

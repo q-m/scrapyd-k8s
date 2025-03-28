@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-import logging
 import uuid
 from flask import Flask, request, Response, jsonify
 from flask_basicauth import BasicAuth
 from natsort import natsort_keygen, ns
 
-from .k8s_resource_watcher import ResourceWatcher
-from .k8s_scheduler import KubernetesScheduler
 from .config import Config
 config = Config()
 

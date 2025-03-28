@@ -4,6 +4,7 @@ import time
 from kubernetes import client, watch
 from typing import Callable, List
 import urllib3
+
 logger = logging.getLogger(__name__)
 
 class ResourceWatcher:

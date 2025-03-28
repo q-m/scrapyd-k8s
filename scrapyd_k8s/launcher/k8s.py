@@ -1,18 +1,16 @@
 import os
-import logging
 
 import kubernetes
 import kubernetes.stream
 import logging
 from signal import Signals
 
-from ..utils import format_datetime_object, native_stringify_dict
-from scrapyd_k8s.joblogs import KubernetesJobLogHandler
+from ..utils import format_datetime_object
 
 logger = logging.getLogger(__name__)
 
 from kubernetes.client import ApiException
-from ..k8s_scheduler import KubernetesScheduler
+from scrapyd_k8s.launcher.k8s_scheduler import KubernetesScheduler
 from ..k8s_resource_watcher import ResourceWatcher
 from ..utils import native_stringify_dict
 from scrapyd_k8s.joblogs import KubernetesJobLogHandler
