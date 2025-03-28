@@ -46,7 +46,7 @@ class TestPodEventHandling:
     ])
     def test_handle_pod_event_input_validation(self, mock_config, mock_launcher, event, expected_log, log_type):
         scheduler = KubernetesScheduler(mock_config, mock_launcher, 5)
-        with patch('scrapyd_k8s.k8s_scheduler.k8s_scheduler.logger') as mock_logger:
+        with patch('scrapyd_k8s.launcher.k8s_scheduler.k8s_scheduler.logger') as mock_logger:
             scheduler.handle_pod_event(event)
             if log_type == 'error':
                 mock_logger.error.assert_called_with(expected_log)
@@ -113,7 +113,7 @@ class TestPodEventHandling:
 
         event = {'object': pod, 'type': 'MODIFIED'}
 
-        with patch('scrapyd_k8s.k8s_scheduler.k8s_scheduler.logger') as mock_logger, \
+        with patch('scrapyd_k8s.launcher.k8s_scheduler.k8s_scheduler.logger') as mock_logger, \
                 patch.object(scheduler, 'check_and_unsuspend_jobs') as mock_check_and_unsuspend_jobs:
             scheduler.handle_pod_event(event)
 
@@ -171,7 +171,7 @@ class TestJobSuspensionManagement:
         scheduler.get_next_suspended_job_id = Mock(side_effect=suspended_jobs)
         mock_launcher.unsuspend_job.side_effect = unsuspend_results
 
-        with patch('scrapyd_k8s.k8s_scheduler.k8s_scheduler.logger') as mock_logger:
+        with patch('scrapyd_k8s.launcher.k8s_scheduler.k8s_scheduler.logger') as mock_logger:
             scheduler.check_and_unsuspend_jobs()
 
             assert mock_launcher.unsuspend_job.call_count == len(unsuspend_results)
@@ -198,7 +198,7 @@ class TestJobSuspensionManagement:
         scheduler.get_next_suspended_job_id = Mock(return_value='job1')
         mock_launcher.unsuspend_job.side_effect = ApiException("API Error")
 
-        with patch('scrapyd_k8s.k8s_scheduler.k8s_scheduler.logger') as mock_logger:
+        with patch('scrapyd_k8s.launcher.k8s_scheduler.k8s_scheduler.logger') as mock_logger:
             scheduler.check_and_unsuspend_jobs()
             mock_launcher.unsuspend_job.assert_called_once_with('job1')
             mock_logger.error.assert_called_with(
@@ -262,7 +262,7 @@ class TestSuspendedJobSelection:
 
             mock_launcher.list_suspended_jobs.return_value = mock_jobs
 
-        with patch('scrapyd_k8s.k8s_scheduler.k8s_scheduler.logger') as mock_logger:
+        with patch('scrapyd_k8s.launcher.k8s_scheduler.k8s_scheduler.logger') as mock_logger:
             job_id = scheduler.get_next_suspended_job_id()
             assert job_id == expected_job_id
 
