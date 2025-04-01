@@ -22,7 +22,8 @@ Kubernetes job, and the daemon will retrieve its state by looking at those
 jobs. This makes it easy to inspect and adjust the spider queue even outside
 scrapyd-k8s.
 
-No scheduling is happening (yet?), so all jobs created will be started immediately.
+By default, there is no scheduling, and all jobs created will be started immediately.
+This can be changed by [setting `max_proc`](CONFIG.md).
 
 ## Running
 
@@ -69,6 +70,7 @@ things out.
 2. Create the resources: `kubectl create -f kubernetes.yaml`
 
 You'll be able to talk to the `scrapyd-k8s` service on port `6800`.
+Note that some features require additional Kubernetes configuration (scheduling, joblogs).
 
 ### Local
 

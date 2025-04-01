@@ -7,7 +7,7 @@ stick to [scrapyd's configuration](https://scrapyd.readthedocs.io/en/latest/conf
 
 * `http_port`    - defaults to `6800` ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#http-port))
 * `bind_address` - defaults to `127.0.0.1` ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#bind-address))
-* `max_proc`     - _(implementation pending)_, if unset or `0` it will use the number of nodes in the cluster, defaults to `0` ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#max-proc))
+* `max_proc`     - if unset or `0`, all jobs start immediately, defaults to `0` ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#max-proc))
 * `repository`   - Python class for accessing the image repository, defaults to `scrapyd_k8s.repository.Remote`
 * `launcher`     - Python class for managing jobs on the cluster, defaults to `scrapyd_k8s.launcher.K8s`
 * `username`     - Set this and `password` to enable basic authentication ([➽](https://scrapyd.readthedocs.io/en/latest/config.html#username))
@@ -68,7 +68,7 @@ connection to the Kubernetes API. To achieve this, two parameters were introduce
   connection with the Kubernetes API, preventing the API from becoming overloaded with requests.
   The `backoff_time` increases exponentially and is calculated as `backoff_time *= self.backoff_coefficient`.
 
-### max_proc
+### `max_proc`
 
 By default `max_proc` is not present in the config file but you can add it under the scrapyd section to limit the number
 of jobs that run in parallel, while other scheduled job wait for their turn to run whenever currently running job(s)
