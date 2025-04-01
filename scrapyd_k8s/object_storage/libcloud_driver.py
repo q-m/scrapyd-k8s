@@ -1,6 +1,8 @@
+import gzip
 import os
 import re
 import logging
+import tempfile
 
 from libcloud.storage.types import (
     ObjectError,
@@ -136,22 +138,37 @@ class LibcloudObjectStorage:
         Logs information about the upload status or errors encountered.
         """
         job_id = os.path.basename(local_path).replace('.txt', '')
-        object_name = f"logs/{project}/{spider}/{job_id}.log"
+        object_name = f"logs/{project}/{spider}/{job_id}.log.gz"
+        temp_path = None
         try:
-            container = self.driver.get_container(container_name=self._container_name)
-            self.driver.upload_object(
-                local_path,
-                container,
-                object_name,
-                extra=None,
-                verify_hash=False,
-                headers=None
-            )
-            logger.info(f"Successfully uploaded '{object_name}' to container '{self._container_name}'.")
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                temp_path = temp_file.name
+                with open(local_path, 'rb') as f_in:
+                    with gzip.open(temp_path, 'wb') as f_out:
+                        while True:
+                            chunk = f_in.read(1024)
+                            if not chunk:
+                                break
+                            f_out.write(chunk)
+                container = self.driver.get_container(container_name=self._container_name)
+                with open(temp_path, 'rb') as compressed_file:
+                    self.driver.upload_object_via_stream(
+                        compressed_file,
+                        container,
+                        object_name,
+                        extra=None,
+                        headers=None
+                    )
+
+                logger.info(f"Successfully uploaded compressed file '{object_name}' to container '{self._container_name}'.")
         except (ObjectError, ContainerDoesNotExistError, InvalidContainerNameError) as e:
             logger.exception(f"Error uploading the file '{object_name}': {e}")
         except Exception as e:
             logger.exception(f"An unexpected error occurred while uploading '{object_name}': {e}")
+        finally:
+            # Remove temporary file even if upload fails
+            if temp_path and os.path.exists(temp_path):
+                os.unlink(temp_path)
 
     def object_exists(self, prefix):
         """
