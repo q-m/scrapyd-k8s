@@ -59,7 +59,7 @@ choose to use them.
 The event watcher establishes a connection to the Kubernetes API and receives a stream of events from it. However, the
 nature of this long-lived connection is unstable; it can be interrupted by network issues, proxies configured to terminate
 long-lived connections, and other factors. For this reason, a mechanism was implemented to re-establish the long-lived
-connection to the Kubernetes API. To achieve this, three parameters were introduced:
+connection to the Kubernetes API. To achieve this, two parameters were introduced:
 `backoff_time` and `backoff_coefficient`.
 
 #### What are these parameters about?

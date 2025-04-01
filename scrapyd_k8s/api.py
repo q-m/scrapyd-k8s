@@ -156,5 +156,6 @@ def run():
     config_password = scrapyd_config.get('password')
     if config_username is not None and config_password is not None:
         enable_authentication(app, config_username, config_password)
+
     # run server
     app.run(host=host, port=port)
