@@ -108,7 +108,7 @@ data:
     limits_memory = 0.5G
     
     [joblogs]
-    logs_dir = /tmp/joblogs
+    logs_dir = /data/joblogs
 ---
 apiVersion: v1
 kind: Secret

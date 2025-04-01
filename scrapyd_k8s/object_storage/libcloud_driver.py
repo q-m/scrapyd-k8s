@@ -147,7 +147,6 @@ class LibcloudObjectStorage:
                 verify_hash=False,
                 headers=None
             )
-            logger.debug("HEY I AN UPLOADING")
             logger.info(f"Successfully uploaded '{object_name}' to container '{self._container_name}'.")
         except (ObjectError, ContainerDoesNotExistError, InvalidContainerNameError) as e:
             logger.exception(f"Error uploading the file '{object_name}': {e}")
