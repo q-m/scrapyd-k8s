@@ -10,6 +10,7 @@ from libcloud.storage.types import (
 from libcloud.storage.providers import get_driver
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 class LibcloudObjectStorage:
     """
@@ -113,14 +114,18 @@ class LibcloudObjectStorage:
         result = result.replace(r'\${', '${')
         return result
 
-    def upload_file(self, local_path):
+    def upload_file(self, project, spider, local_path):
         """
         Uploads a file to the object storage container.
 
         Parameters
         ----------
         local_path : str
-            The local file path of the file to be uploaded.
+            The job_id that is passed as a local path.
+        project : str
+            The name of the project.
+        spider : str
+            The name of the spider.
 
         Returns
         -------
@@ -130,7 +135,8 @@ class LibcloudObjectStorage:
         ----
         Logs information about the upload status or errors encountered.
         """
-        object_name = os.path.basename(local_path)
+        job_id = os.path.basename(local_path).replace('.txt', '')
+        object_name = f"logs/{project}/{spider}/{job_id}.log"
         try:
             container = self.driver.get_container(container_name=self._container_name)
             self.driver.upload_object(
@@ -141,6 +147,7 @@ class LibcloudObjectStorage:
                 verify_hash=False,
                 headers=None
             )
+            logger.debug("HEY I AN UPLOADING")
             logger.info(f"Successfully uploaded '{object_name}' to container '{self._container_name}'.")
         except (ObjectError, ContainerDoesNotExistError, InvalidContainerNameError) as e:
             logger.exception(f"Error uploading the file '{object_name}': {e}")

@@ -99,7 +99,7 @@ data:
     env_config   = spider-example-env
     repository   = ghcr.io/q-m/scrapyd-k8s-spider-example
 
-    # It is strongly recomended to set resource requests and limits on production.
+    # It is strongly recommended to set resource requests and limits on production.
     # They can be overridden on the project and spider level.
     [default.resources]
     requests_cpu = 0.2
@@ -108,7 +108,7 @@ data:
     limits_memory = 0.5G
     
     [joblogs]
-    logs_dir = /data/joblogs
+    logs_dir = /tmp/joblogs
 ---
 apiVersion: v1
 kind: Secret

@@ -268,6 +268,8 @@ class KubernetesJobLogHandler:
             if pod.metadata.labels.get("org.scrapy.job_id"):
                 job_id = pod.metadata.labels.get("org.scrapy.job_id")
                 pod_name = pod.metadata.name
+                spider = pod.metadata.labels.get("org.scrapy.spider")
+                project = pod.metadata.labels.get("org.scrapy.project")
                 thread_name = f"{self.namespace}_{pod_name}"
                 if pod.status.phase == 'Running':
                     if (thread_name in self.watcher_threads
@@ -290,7 +292,7 @@ class KubernetesJobLogHandler:
                                 logger.info(
                                     f"Removed local log file '{log_filename}' since it already exists in storage.")
                         else:
-                            self.object_storage_provider.upload_file(log_filename)
+                            self.object_storage_provider.upload_file(project, spider, log_filename)
                             os.remove(log_filename)
                             logger.info(f"Removed local log file '{log_filename}' after successful upload.")
                     else:
