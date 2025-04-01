@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import logging
 import uuid
 from flask import Flask, request, Response, jsonify
 from flask_basicauth import BasicAuth

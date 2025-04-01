@@ -89,8 +89,6 @@ data:
     launcher     = scrapyd_k8s.launcher.K8s
     
     namespace    = default
-    
-    max_proc     = 2
 
     # This is an example spider that should work out of the box.
     # Adapt the spider config to your use-case.
@@ -164,6 +162,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: scrapyd-k8s
+# review scrapyd_k8s/test/integration/*.k8s.sh when modifying this in the repository
 rules:
   - apiGroups: [""]
     resources: ["pods"]
@@ -176,6 +175,7 @@ rules:
     verbs: ["get"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
+    # add "patch" if you use scheduling, i.e. if you use max_proc
     verbs: ["get", "list", "create", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

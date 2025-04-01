@@ -1,15 +1,22 @@
 import os
-import logging
 
 import kubernetes
 import kubernetes.stream
+import logging
 from signal import Signals
 
+from ..utils import format_datetime_object
+
+logger = logging.getLogger(__name__)
+
+from kubernetes.client import ApiException
+from scrapyd_k8s.launcher.k8s_scheduler import KubernetesScheduler
 from ..k8s_resource_watcher import ResourceWatcher
-from ..utils import format_datetime_object, native_stringify_dict
+from ..utils import native_stringify_dict
 from scrapyd_k8s.joblogs import KubernetesJobLogHandler
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class K8s:
 
@@ -19,6 +26,7 @@ class K8s:
 
     def __init__(self, config):
         self._namespace = config.scrapyd().get('namespace', 'default')
+        self.max_proc = config.scrapyd().get('max_proc')
         self._pull_secret = config.scrapyd().get('pull_secret')
         # TODO figure out where to put Kubernetes initialisation
         try:
@@ -29,15 +37,19 @@ class K8s:
         self._k8s = kubernetes.client.CoreV1Api()
         self._k8s_batch = kubernetes.client.BatchV1Api()
 
+        self.k8s_scheduler = None
         self._init_resource_watcher(config)
 
     def _init_resource_watcher(self, config):
         self.resource_watcher = ResourceWatcher(self._namespace, config)
-
         if config.joblogs() is not None:
             self.enable_joblogs(config)
         else:
             logger.debug("Job logs handling not enabled; 'joblogs' configuration section is missing.")
+        if self.max_proc is not None:
+            self.enable_k8s_scheduler(config)
+        else:
+            logger.debug("k8s scheduler not enabled; jobs run directly after scheduling.")
 
     def get_node_name(self):
         deployment = os.getenv('MY_DEPLOYMENT_NAME', 'default')
@@ -45,12 +57,22 @@ class K8s:
         return ".".join([n for n in [namespace, deployment] if n])
 
     def listjobs(self, project=None):
-        label = self.LABEL_PROJECT + ('=%s'%(project) if project else '')
-        jobs = self._k8s_batch.list_namespaced_job(namespace=self._namespace, label_selector=label)
-        jobs = [self._parse_job(j) for j in jobs.items]
-        return jobs
+        label_selector = self.LABEL_PROJECT + ('=%s' % project if project else '')
+        return self._filter_jobs(
+            label_selector=label_selector,
+            filter_func=None,  # No additional filtering
+            parse_func=self._parse_job
+        )
 
     def schedule(self, project, version, spider, job_id, settings, args):
+        if self.k8s_scheduler:
+            running_jobs = self.get_running_jobs_count()
+            start_suspended = running_jobs >= self.k8s_scheduler.max_proc
+            logger.debug(
+                f"Scheduling job {job_id} with start_suspended={start_suspended}. Running jobs: {running_jobs}, Max procs: {self.k8s_scheduler.max_proc}")
+        else:
+            start_suspended = False
+            logger.debug(f"Scheduling job {job_id} without suspension. Scheduler not enabled.")
         job_name = self._k8s_job_name(project.id(), job_id)
         _settings = [i for k, v in native_stringify_dict(settings, keys_only=False).items() for i in ['-s', f"{k}={v}"]]
         _args = [i for k, v in native_stringify_dict(args, keys_only=False).items() for i in ['-a', f"{k}={v}"]]
@@ -98,7 +120,7 @@ class K8s:
         )
         job_spec = kubernetes.client.V1JobSpec(
             template=pod_template,
-            # suspend=True, # TODO implement scheduler with suspend
+            suspend=start_suspended,
             completions=1,
             backoff_limit=0 # don't retry (TODO reconsider)
         )
@@ -144,6 +166,135 @@ class K8s:
         else:
             logger.warning("No storage provider configured; job logs will not be uploaded.")
 
+    def enable_k8s_scheduler(self, config):
+        try:
+            max_proc = int(self.max_proc)
+            self.k8s_scheduler = KubernetesScheduler(config, self, max_proc)
+            logger.debug(f"KubernetesLauncher initialized with max_proc={max_proc}.")
+            self.resource_watcher.subscribe(self.k8s_scheduler.handle_pod_event)
+            logger.info("K8s scheduler started.")
+        except ValueError:
+            logger.error(f"Invalid max_proc value: {self.max_proc}. Scheduler not enabled.")
+            self.k8s_scheduler = None
+
+    def unsuspend_job(self, job_id: str):
+        if not self.k8s_scheduler:
+            logger.error("Scheduler is not enabled. Cannot unsuspend jobs.")
+            return False
+        job_name = self._get_job_name(job_id)
+        if not job_name:
+            logger.error(f"Cannot unsuspend job {job_id}: job name not found.")
+            return False
+        try:
+            self._k8s_batch.patch_namespaced_job(
+                name=job_name,
+                namespace=self._namespace,
+                body={'spec': {'suspend': False}}
+            )
+            logger.info(f"Job {job_id} unsuspended.")
+            return True
+        except ApiException as e:
+            logger.exception(f"Error unsuspending job {job_id}: {e}")
+            return False
+
+    def get_running_jobs_count(self) -> int:
+        """
+        Returns the number of currently active (unsuspended, not completed, not failed) jobs.
+        """
+        label_selector = f"{self.LABEL_JOB_ID}"
+        active_jobs = self._filter_jobs(
+            label_selector=label_selector,
+            filter_func=self._is_active_job
+        )
+        logger.debug(f"Found {len(active_jobs)} active jobs.")
+        return len(active_jobs)
+
+    def list_suspended_jobs(self, label_selector: str = ""):
+        """
+        Retrieves a list of suspended jobs.
+        """
+        suspended_jobs = self._filter_jobs(
+            label_selector=label_selector,
+            filter_func=self._is_suspended_job
+        )
+        logger.debug(f"Found {len(suspended_jobs)} suspended jobs.")
+        return suspended_jobs
+
+    def _filter_jobs(self, label_selector, filter_func=None, parse_func=None):
+        """
+        Helper method to fetch jobs and optionally filter and parse them.
+
+        Parameters
+        ----------
+        label_selector : str
+            Kubernetes label selector to filter jobs.
+        filter_func : function, optional
+            A function that takes a job and returns True if the job matches the condition.
+            If None, all jobs are included.
+        parse_func : function, optional
+            A function that takes a job and returns a transformed job.
+            If None, the raw job object is returned.
+
+        Returns
+        -------
+        list
+            A list of Kubernetes Job objects that match the filter condition and are parsed if parse_func is provided.
+        """
+        try:
+            jobs_response = self._k8s_batch.list_namespaced_job(
+                namespace=self._namespace,
+                label_selector=label_selector
+            )
+            jobs = jobs_response.items
+
+            if filter_func is not None:
+                jobs = [job for job in jobs if filter_func(job)]
+
+            if parse_func is not None:
+                jobs = [parse_func(job) for job in jobs]
+
+            return jobs
+        except ApiException as e:
+            logger.exception(f"API call failed while listing jobs: {e}")
+            return []
+
+    def _is_active_job(self, job):
+        """
+        Determines if a job is active (running) based on your specific filtering criteria.
+
+        Parameters
+        ----------
+        job : V1Job
+            A Kubernetes Job object.
+
+        Returns
+        -------
+        bool
+            True if the job is active, False otherwise.
+        """
+        job_name = job.metadata.name
+        is_suspended = job.spec.suspend
+        is_completed = job.status.completion_time is not None
+        has_failed = job.status.failed is not None and job.status.failed > 0
+        logger.debug(
+            f"Job {job_name}: suspended={is_suspended}, completed={is_completed}, failed={has_failed}")
+        return not is_suspended and not is_completed and not has_failed
+
+    def _is_suspended_job(self, job):
+        """
+        Determines if a job is suspended.
+
+        Parameters
+        ----------
+        job : V1Job
+            A Kubernetes Job object.
+
+        Returns
+        -------
+        bool
+            True if the job is suspended, False otherwise.
+        """
+        return job.spec.suspend
 
     def _parse_job(self, job):
         state = self._k8s_job_to_scrapyd_status(job)
@@ -157,17 +308,44 @@ class K8s:
         }
 
     def _get_job(self, project, job_id):
-        label = self.LABEL_JOB_ID + '=' + job_id
-        r = self._k8s_batch.list_namespaced_job(namespace=self._namespace, label_selector=label)
-        if not r or not r.items:
+        label_selector = f"{self.LABEL_JOB_ID}={job_id}"
+        jobs = self._filter_jobs(
+            label_selector=label_selector,
+            filter_func=None
+        )
+        if not jobs:
+            logger.error(f"No job found with job_id={job_id}")
             return None
-        job = r.items[0]
-
+        job = jobs[0]
         if job.metadata.labels.get(self.LABEL_PROJECT) != project:
-            # TODO log error
+            logger.error(f"Job {job_id} does not belong to project {project}")
             return None
-
         return job
+
+    def _get_job_name(self, job_id: str):
+        """
+                Retrieves the Kubernetes job name for the given job ID.
+
+                Parameters
+                ----------
+                job_id : str
+                    The job ID to look up.
+
+                Returns
+                -------
+                str or None
+                    The name of the Kubernetes job, or None if not found.
+                """
+        label_selector = f"{self.LABEL_JOB_ID}={job_id}"
+        jobs = self._filter_jobs(
+            label_selector=label_selector,
+            filter_func=None
+        )
+
+        if not jobs:
+            logger.error(f"No job found with job_id={job_id}")
+            return None
+        return jobs[0].metadata.name
 
     def _get_pod(self, project, job_id):
         label = self.LABEL_JOB_ID + '=' + job_id
