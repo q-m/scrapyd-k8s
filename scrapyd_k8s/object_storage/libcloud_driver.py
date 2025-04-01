@@ -1,8 +1,6 @@
-import gzip
 import os
 import re
 import logging
-import tempfile
 
 from libcloud.storage.types import (
     ObjectError,
@@ -10,6 +8,7 @@ from libcloud.storage.types import (
     InvalidContainerNameError,
 )
 from libcloud.storage.providers import get_driver
+from scrapyd_k8s.object_storage.log_compressor import Compression
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -40,6 +39,12 @@ class LibcloudObjectStorage:
     """
 
     VARIABLE_PATTERN = re.compile(r'\$\{([^}]+)}')
+    COMPRESSION_EXTENSIONS = {
+        'gzip': 'gz',
+        'bz2': 'bz2',
+        'lzma': 'xz',
+        'brotli': 'br'
+    }
 
     def __init__(self, config):
         """
@@ -64,6 +69,9 @@ class LibcloudObjectStorage:
         if self._container_name is None:
             logger.error("Container name is not set in the configuration.")
             raise ValueError("Container name is not set")
+
+        # Reading the compression method from the config and setting default to 'gzip'
+        self.compression_method = config.joblogs().get('compression_method', 'gzip')
 
         args_envs = config.joblogs_storage(self._storage_provider)
         args = {}
@@ -138,27 +146,22 @@ class LibcloudObjectStorage:
         Logs information about the upload status or errors encountered.
         """
         job_id = os.path.basename(local_path).replace('.txt', '')
-        object_name = f"logs/{project}/{spider}/{job_id}.log.gz"
-        temp_path = None
+        extension = self.COMPRESSION_EXTENSIONS.get(self.compression_method, self.compression_method)
+        object_name = f"logs/{project}/{spider}/{job_id}.log.{extension}"
+
+        compressed_file_path = None
         try:
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                temp_path = temp_file.name
-                with open(local_path, 'rb') as f_in:
-                    with gzip.open(temp_path, 'wb') as f_out:
-                        while True:
-                            chunk = f_in.read(1024)
-                            if not chunk:
-                                break
-                            f_out.write(chunk)
-                container = self.driver.get_container(container_name=self._container_name)
-                with open(temp_path, 'rb') as compressed_file:
-                    self.driver.upload_object_via_stream(
-                        compressed_file,
-                        container,
-                        object_name,
-                        extra=None,
-                        headers=None
-                    )
+            compression = Compression(self.compression_method)
+            compressed_file_path = compression.compress(local_path)
+            container = self.driver.get_container(container_name=self._container_name)
+            with open(compressed_file_path, 'rb') as compressed_file:
+                self.driver.upload_object_via_stream(
+                    compressed_file,
+                    container,
+                    object_name,
+                    extra=None,
+                    headers=None
+                )
 
                 logger.info(f"Successfully uploaded compressed file '{object_name}' to container '{self._container_name}'.")
         except (ObjectError, ContainerDoesNotExistError, InvalidContainerNameError) as e:
@@ -167,8 +170,9 @@ class LibcloudObjectStorage:
             logger.exception(f"An unexpected error occurred while uploading '{object_name}': {e}")
         finally:
             # Remove temporary file even if upload fails
-            if temp_path and os.path.exists(temp_path):
-                os.unlink(temp_path)
+            if compressed_file_path and os.path.exists(compressed_file_path):
+                os.remove(compressed_file_path)
+                logger.debug(f"Removed temporary compressed file '{compressed_file_path}'.")
 
     def object_exists(self, prefix):
         """
