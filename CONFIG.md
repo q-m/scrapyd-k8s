@@ -47,7 +47,7 @@ TODO: explain how to set limits, with default, project and spider specificity.
 
 ### [joblogs] section
   * `logs_dir`     - a directory to store log files collected on k8s cluster (implemented only for Kubernetes). If you are using a Persistent Volume, keep in mind, that the provided path should be mounted in the deployment manifest. Read and write permissions should be granted to allow actions with log files in the provided directory, thus a [securityContext](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) was added to the deployment manifest.
-
+  * `compression_method` - a method to compress log files. Available options are `gzip` `bz2`, `lzma` and `brotli`. If not set, defaults to `gzip`.
 
 
 ### Kubernetes API interaction
