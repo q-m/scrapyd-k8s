@@ -107,6 +107,7 @@ data:
     
     [joblogs]
     logs_dir = /data/joblogs
+    compression_method = none
 ---
 apiVersion: v1
 kind: Secret
