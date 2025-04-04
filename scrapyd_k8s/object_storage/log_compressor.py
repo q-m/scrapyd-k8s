@@ -18,7 +18,7 @@ class Compression:
     A class to handle compression of logs in different formats (gzip, bz2, lzma, brotli) using disk-based files.
     """
 
-    SUPPORTED_METHODS = ['gzip', 'bzip2', 'lzma', 'brotli']
+    SUPPORTED_METHODS = ['gzip', 'bzip2', 'lzma', 'brotli', 'none']
     COMPRESSION_CHUNK_SIZE = 1024
 
     def __init__(self, method="gzip"):
@@ -59,6 +59,9 @@ class Compression:
             temp_compressed_file = temp_file.name
 
             try:
+                if self.method == 'none':
+                    logger.info(f"Compression method is 'none', skipping compression.")
+                    return input_file_path
                 if self.method == "gzip":
                     with open(input_file_path, 'rb') as f_in:
                         with gzip.open(temp_compressed_file, 'wb') as f_out:

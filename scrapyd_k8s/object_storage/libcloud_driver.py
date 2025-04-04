@@ -151,21 +151,19 @@ class LibcloudObjectStorage:
         object_name = None
 
         try:
+            object_name = f"logs/{project}/{spider}/{job_id}.log"
             if self.compression_method:
                 try:
                     compression = Compression(self.compression_method)
                     compressed_file_path = compression.compress(local_path)
                     file_to_upload = compressed_file_path
-                    extension = self.COMPRESSION_EXTENSIONS.get(self.compression_method, self.compression_method)
-                    object_name = f"logs/{project}/{spider}/{job_id}.log.{extension}"
+                    if self.compression_method != 'none':
+                        extension = self.COMPRESSION_EXTENSIONS.get(self.compression_method, self.compression_method)
+                        object_name = f"logs/{project}/{spider}/{job_id}.log.{extension}"
                 except Exception as e:
                     logger.error(f"Compression failed, will upload uncompressed file: {e}")
                     # Fallback to uncompressed upload
                     object_name = f"logs/{project}/{spider}/{job_id}.log"
-            else:
-                # No compression
-                object_name = f"logs/{project}/{spider}/{job_id}.log"
-                logging.debug(f"Uploading uncompressed file '{object_name}'.")
 
             container = self.driver.get_container(container_name=self._container_name)
             with open(file_to_upload, 'rb') as file:
@@ -176,15 +174,18 @@ class LibcloudObjectStorage:
                     extra=None,
                     headers=None
                 )
-
-            logger.info(f"Successfully uploaded compressed file '{object_name}' to container '{self._container_name}'.")
+            if self.compression_method and self.compression_method != 'none' and compressed_file_path != local_path:
+                logger.info(
+                    f"Successfully uploaded compressed file '{object_name}' to container '{self._container_name}'.")
+            else:
+                logger.info(f"Successfully uploaded file '{object_name}' to container '{self._container_name}'.")
         except (ObjectError, ContainerDoesNotExistError, InvalidContainerNameError) as e:
             logger.exception(f"Error uploading the file '{object_name}': {e}")
         except Exception as e:
             logger.exception(f"An unexpected error occurred while uploading '{object_name}': {e}")
         finally:
             # Remove temporary file even if upload fails
-            if compressed_file_path and os.path.exists(compressed_file_path):
+            if compressed_file_path and compressed_file_path != local_path and os.path.exists(compressed_file_path):
                 os.remove(compressed_file_path)
                 logger.debug(f"Removed temporary compressed file '{compressed_file_path}'.")
 
