@@ -18,7 +18,8 @@ class Compression:
     A class to handle compression of logs in different formats (gzip, bz2, lzma, brotli) using disk-based files.
     """
 
-    SUPPORTED_METHODS = ['gzip', 'bz2', 'lzma', 'brotli']
+    SUPPORTED_METHODS = ['gzip', 'bzip2', 'lzma', 'brotli']
+    COMPRESSION_CHUNK_SIZE = 1024
 
     def __init__(self, method="gzip"):
         """
@@ -61,17 +62,17 @@ class Compression:
                 if self.method == "gzip":
                     with open(input_file_path, 'rb') as f_in:
                         with gzip.open(temp_compressed_file, 'wb') as f_out:
-                            while chunk := f_in.read(1024):
+                            while chunk := f_in.read(self.COMPRESSION_CHUNK_SIZE):
                                 f_out.write(chunk)
-                elif self.method == "bz2":
+                elif self.method == "bzip2":
                     with open(input_file_path, 'rb') as f_in:
                         with bz2.BZ2File(temp_compressed_file, 'wb') as f_out:
-                            while chunk := f_in.read(1024):
+                            while chunk := f_in.read(self.COMPRESSION_CHUNK_SIZE):
                                 f_out.write(chunk)
                 elif self.method == "lzma":
                     with open(input_file_path, 'rb') as f_in:
                         with lzma.open(temp_compressed_file, 'wb') as f_out:
-                            while chunk := f_in.read(1024):
+                            while chunk := f_in.read(self.COMPRESSION_CHUNK_SIZE):
                                 f_out.write(chunk)
                 elif self.method == "brotli":
                     with open(input_file_path, 'rb') as f_in:

@@ -41,7 +41,7 @@ class LibcloudObjectStorage:
     VARIABLE_PATTERN = re.compile(r'\$\{([^}]+)}')
     COMPRESSION_EXTENSIONS = {
         'gzip': 'gz',
-        'bz2': 'bz2',
+        'bzip2': 'bz2',
         'lzma': 'xz',
         'brotli': 'br'
     }
@@ -71,7 +71,7 @@ class LibcloudObjectStorage:
             raise ValueError("Container name is not set")
 
         # Reading the compression method from the config and setting default to 'gzip'
-        self.compression_method = config.joblogs().get('compression_method', 'gzip')
+        self.compression_method = config.joblogs().get('compression_method', None)
 
         args_envs = config.joblogs_storage(self._storage_provider)
         args = {}
@@ -146,24 +146,38 @@ class LibcloudObjectStorage:
         Logs information about the upload status or errors encountered.
         """
         job_id = os.path.basename(local_path).replace('.txt', '')
-        extension = self.COMPRESSION_EXTENSIONS.get(self.compression_method, self.compression_method)
-        object_name = f"logs/{project}/{spider}/{job_id}.log.{extension}"
-
         compressed_file_path = None
+        file_to_upload = local_path
+        object_name = None
+
         try:
-            compression = Compression(self.compression_method)
-            compressed_file_path = compression.compress(local_path)
+            if self.compression_method:
+                try:
+                    compression = Compression(self.compression_method)
+                    compressed_file_path = compression.compress(local_path)
+                    file_to_upload = compressed_file_path
+                    extension = self.COMPRESSION_EXTENSIONS.get(self.compression_method, self.compression_method)
+                    object_name = f"logs/{project}/{spider}/{job_id}.log.{extension}"
+                except Exception as e:
+                    logger.error(f"Compression failed, will upload uncompressed file: {e}")
+                    # Fallback to uncompressed upload
+                    object_name = f"logs/{project}/{spider}/{job_id}.log"
+            else:
+                # No compression
+                object_name = f"logs/{project}/{spider}/{job_id}.log"
+                logging.debug(f"Uploading uncompressed file '{object_name}'.")
+
             container = self.driver.get_container(container_name=self._container_name)
-            with open(compressed_file_path, 'rb') as compressed_file:
+            with open(file_to_upload, 'rb') as file:
                 self.driver.upload_object_via_stream(
-                    compressed_file,
+                    file,
                     container,
                     object_name,
                     extra=None,
                     headers=None
                 )
 
-                logger.info(f"Successfully uploaded compressed file '{object_name}' to container '{self._container_name}'.")
+            logger.info(f"Successfully uploaded compressed file '{object_name}' to container '{self._container_name}'.")
         except (ObjectError, ContainerDoesNotExistError, InvalidContainerNameError) as e:
             logger.exception(f"Error uploading the file '{object_name}': {e}")
         except Exception as e:

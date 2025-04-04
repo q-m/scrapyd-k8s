@@ -5,3 +5,4 @@ natsort>=8.0.0
 Flask-BasicAuth>=0.2.0
 MarkupSafe>=2.1.5
 apache-libcloud>=3.8.0
+brotli>=1.1.0 # only if you plan to use brotli compression for log files in joblogs module
