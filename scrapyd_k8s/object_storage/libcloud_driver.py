@@ -70,8 +70,8 @@ class LibcloudObjectStorage:
             logger.error("Container name is not set in the configuration.")
             raise ValueError("Container name is not set")
 
-        # Reading the compression method from the config and setting default to 'gzip'
-        self.compression_method = config.joblogs().get('compression_method', None)
+        # Reading the compression method from the config
+        self.compression_method = config.joblogs().get('compression_method', "none")
 
         args_envs = config.joblogs_storage(self._storage_provider)
         args = {}
