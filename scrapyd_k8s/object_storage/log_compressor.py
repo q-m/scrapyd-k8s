@@ -18,7 +18,7 @@ class Compression:
     A class to handle compression of logs in different formats (gzip, bz2, lzma, brotli) using disk-based files.
     """
 
-    SUPPORTED_METHODS = ['gzip', 'bzip2', 'lzma', 'brotli', 'none']
+    SUPPORTED_METHODS = ['gzip', 'bzip2', 'lzma', 'brotli']
     COMPRESSION_CHUNK_SIZE = 1024
 
     def __init__(self, method="gzip"):
@@ -39,6 +39,12 @@ class Compression:
             raise ValueError(
                 f"Unsupported compression method: {method}. Supported methods are {', '.join(self.SUPPORTED_METHODS)}")
         self.method = method
+        self._compression_handlers = {
+            'gzip': self._handle_streaming_compression(gzip.open),
+            'bzip2': self._handle_streaming_compression(bz2.BZ2File),
+            'lzma': self._handle_streaming_compression(lzma.open),
+            'brotli': self._handle_brotli_compression
+        }
 
     def compress(self, input_file_path):
         """
@@ -59,37 +65,46 @@ class Compression:
             temp_compressed_file = temp_file.name
 
             try:
-                if self.method == 'none':
-                    logger.info(f"Compression method is 'none', skipping compression.")
-                    return input_file_path
-                if self.method == "gzip":
-                    with open(input_file_path, 'rb') as f_in:
-                        with gzip.open(temp_compressed_file, 'wb') as f_out:
-                            while chunk := f_in.read(self.COMPRESSION_CHUNK_SIZE):
-                                f_out.write(chunk)
-                elif self.method == "bzip2":
-                    with open(input_file_path, 'rb') as f_in:
-                        with bz2.BZ2File(temp_compressed_file, 'wb') as f_out:
-                            while chunk := f_in.read(self.COMPRESSION_CHUNK_SIZE):
-                                f_out.write(chunk)
-                elif self.method == "lzma":
-                    with open(input_file_path, 'rb') as f_in:
-                        with lzma.open(temp_compressed_file, 'wb') as f_out:
-                            while chunk := f_in.read(self.COMPRESSION_CHUNK_SIZE):
-                                f_out.write(chunk)
-                elif self.method == "brotli":
-                    with open(input_file_path, 'rb') as f_in:
-                        compressed_data = brotli.compress(f_in.read())
-                    with open(temp_compressed_file, 'wb') as f_out:
-                        f_out.write(compressed_data)
+                # Get the appropriate compression handler and call it
+                handler = self._compression_handlers[self.method]
+                result = handler(input_file_path, temp_compressed_file)
 
                 logger.info(
                     f"Successfully compressed file to '{temp_compressed_file}' using {self.method} compression.")
-                return temp_compressed_file
-
+                return result
             except Exception as e:
                 logger.error(f"Error during compression: {e}")
                 raise
 
-        return temp_compressed_file
+    def _handle_streaming_compression(self, open_func):
+        """
+        Create a handler for streaming compression methods (gzip, bzip2, lzma).
+
+        Parameters
+        ----------
+        open_func : callable
+            The function to open a compressed file (e.g., gzip.open).
+
+        Returns
+        -------
+        callable
+            A function that handles the compression.
+        """
+
+        def handler(input_file_path, output_file_path):
+            with open(input_file_path, 'rb') as f_in:
+                with open_func(output_file_path, 'wb') as f_out:
+                    while chunk := f_in.read(self.COMPRESSION_CHUNK_SIZE):
+                        f_out.write(chunk)
+            return output_file_path
+
+        return handler
+
+    def _handle_brotli_compression(self, input_file_path, output_file_path):
+        """Handle the brotli compression method."""
+        with open(input_file_path, 'rb') as f_in:
+            compressed_data = brotli.compress(f_in.read())
+        with open(output_file_path, 'wb') as f_out:
+            f_out.write(compressed_data)
+        return output_file_path
 

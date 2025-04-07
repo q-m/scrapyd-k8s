@@ -152,14 +152,13 @@ class LibcloudObjectStorage:
 
         try:
             object_name = f"logs/{project}/{spider}/{job_id}.log"
-            if self.compression_method:
+            if self.compression_method != 'none':
                 try:
                     compression = Compression(self.compression_method)
                     compressed_file_path = compression.compress(local_path)
                     file_to_upload = compressed_file_path
-                    if self.compression_method != 'none':
-                        extension = self.COMPRESSION_EXTENSIONS.get(self.compression_method, self.compression_method)
-                        object_name = f"logs/{project}/{spider}/{job_id}.log.{extension}"
+                    extension = self.COMPRESSION_EXTENSIONS.get(self.compression_method, self.compression_method)
+                    object_name = f"logs/{project}/{spider}/{job_id}.log.{extension}"
                 except Exception as e:
                     logger.error(f"Compression failed, will upload uncompressed file: {e}")
                     # Fallback to uncompressed upload
