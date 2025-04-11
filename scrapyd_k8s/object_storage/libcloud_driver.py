@@ -8,6 +8,7 @@ from libcloud.storage.types import (
     InvalidContainerNameError,
 )
 from libcloud.storage.providers import get_driver
+from scrapyd_k8s.object_storage.log_compressor import Compression
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -62,6 +63,9 @@ class LibcloudObjectStorage:
         if self._container_name is None:
             logger.error("Container name is not set in the configuration.")
             raise ValueError("Container name is not set")
+
+        # Reading the compression method from the config
+        self.compression_method = config.joblogs().get('compression_method', "none")
 
         args_envs = config.joblogs_storage(self._storage_provider)
         args = {}
@@ -136,22 +140,47 @@ class LibcloudObjectStorage:
         Logs information about the upload status or errors encountered.
         """
         job_id = os.path.basename(local_path).replace('.txt', '')
-        object_name = f"logs/{project}/{spider}/{job_id}.log"
+        compressed_file_path = None
+        file_to_upload = local_path
+        object_name = None
+
         try:
+            object_name = f"logs/{project}/{spider}/{job_id}.log"
+            if self.compression_method != 'none':
+                try:
+                    compression = Compression(self.compression_method)
+                    compressed_file_path = compression.compress(local_path)
+                    file_to_upload = compressed_file_path
+                    extension = compression.get_extension()
+                    object_name = f"logs/{project}/{spider}/{job_id}.log.{extension}"
+                except Exception as e:
+                    logger.error(f"Compression failed, will upload uncompressed file: {e}")
+                    # Fallback to uncompressed upload
+                    object_name = f"logs/{project}/{spider}/{job_id}.log"
+
             container = self.driver.get_container(container_name=self._container_name)
-            self.driver.upload_object(
-                local_path,
-                container,
-                object_name,
-                extra=None,
-                verify_hash=False,
-                headers=None
-            )
-            logger.info(f"Successfully uploaded '{object_name}' to container '{self._container_name}'.")
+            with open(file_to_upload, 'rb') as file:
+                self.driver.upload_object_via_stream(
+                    file,
+                    container,
+                    object_name,
+                    extra=None,
+                    headers=None
+                )
+            if self.compression_method and self.compression_method != 'none' and compressed_file_path != local_path:
+                logger.info(
+                    f"Successfully uploaded compressed file '{object_name}' to container '{self._container_name}'.")
+            else:
+                logger.info(f"Successfully uploaded file '{object_name}' to container '{self._container_name}'.")
         except (ObjectError, ContainerDoesNotExistError, InvalidContainerNameError) as e:
             logger.exception(f"Error uploading the file '{object_name}': {e}")
         except Exception as e:
             logger.exception(f"An unexpected error occurred while uploading '{object_name}': {e}")
+        finally:
+            # Remove temporary file even if upload fails
+            if compressed_file_path and os.path.exists(compressed_file_path):
+                os.remove(compressed_file_path)
+                logger.debug(f"Removed temporary compressed file '{compressed_file_path}'.")
 
     def object_exists(self, prefix):
         """
