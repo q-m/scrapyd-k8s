@@ -39,12 +39,6 @@ class LibcloudObjectStorage:
     """
 
     VARIABLE_PATTERN = re.compile(r'\$\{([^}]+)}')
-    COMPRESSION_EXTENSIONS = {
-        'gzip': 'gz',
-        'bzip2': 'bz2',
-        'lzma': 'xz',
-        'brotli': 'br'
-    }
 
     def __init__(self, config):
         """
@@ -157,7 +151,7 @@ class LibcloudObjectStorage:
                     compression = Compression(self.compression_method)
                     compressed_file_path = compression.compress(local_path)
                     file_to_upload = compressed_file_path
-                    extension = self.COMPRESSION_EXTENSIONS.get(self.compression_method, self.compression_method)
+                    extension = compression.get_extension()
                     object_name = f"logs/{project}/{spider}/{job_id}.log.{extension}"
                 except Exception as e:
                     logger.error(f"Compression failed, will upload uncompressed file: {e}")
@@ -184,7 +178,7 @@ class LibcloudObjectStorage:
             logger.exception(f"An unexpected error occurred while uploading '{object_name}': {e}")
         finally:
             # Remove temporary file even if upload fails
-            if compressed_file_path and compressed_file_path != local_path and os.path.exists(compressed_file_path):
+            if compressed_file_path and os.path.exists(compressed_file_path):
                 os.remove(compressed_file_path)
                 logger.debug(f"Removed temporary compressed file '{compressed_file_path}'.")
 

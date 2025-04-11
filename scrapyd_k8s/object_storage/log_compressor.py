@@ -21,6 +21,13 @@ class Compression:
     SUPPORTED_METHODS = ['gzip', 'bzip2', 'lzma', 'brotli']
     COMPRESSION_CHUNK_SIZE = 1024
 
+    COMPRESSION_EXTENSIONS = {
+        'gzip': 'gz',
+        'bzip2': 'bz2',
+        'lzma': 'xz',
+        'brotli': 'br'
+    }
+
     def __init__(self, method="gzip"):
         """
         Initializes the compression method.
@@ -75,6 +82,17 @@ class Compression:
             except Exception as e:
                 logger.error(f"Error during compression: {e}")
                 raise
+
+    def get_extension(self):
+        """
+        Returns the file extension for the current compression method.
+
+        Returns
+        -------
+        str
+            The file extension for the current compression method.
+        """
+        return self.COMPRESSION_EXTENSIONS.get(self.method, self.method)
 
     def _handle_streaming_compression(self, open_func):
         """
