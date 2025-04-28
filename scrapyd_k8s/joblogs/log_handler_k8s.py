@@ -84,6 +84,62 @@ class KubernetesJobLogHandler:
             raise ValueError("Configuration error: 'logs_dir' is missing in joblogs configuration section.")
         self.object_storage_provider = LibcloudObjectStorage(self.config)
 
+    def _add_object_name_label(self, pod, object_name):
+        """
+        Adds extension as label to the pod.
+        Adds label that the log file was uploaded.
+
+        Parameters
+        ----------
+        pod : V1Pod
+            The Kubernetes pod object.
+        object_name : str
+            The object name in storage.
+
+        Returns
+        -------
+        bool
+            True if the label was added successfully, False otherwise.
+        """
+        try:
+            extension = os.path.splitext(object_name)[1][1:]
+            v1 = client.CoreV1Api()
+
+            # Create a body for the patch operation
+            patch_extension = {
+                "metadata": {
+                    "labels": {
+                        "org.scrapy.log_file_extension": extension
+                    }
+                }
+            }
+
+            patch_upload_label = {
+                "metadata": {
+                    "labels": {
+                        "org.scrapy.log_file_uploaded": "true"
+                    }
+                }
+            }
+
+            # Patch the pod with the new label
+            v1.patch_namespaced_pod(
+                name=pod.metadata.name,
+                namespace=self.namespace,
+                body=patch_extension
+            )
+            v1.patch_namespaced_pod(
+                name=pod.metadata.name,
+                namespace=self.namespace,
+                body=patch_upload_label
+            )
+
+            logger.info(f"Added log_file_extension labels '{extension}' and log_file_uploaded: 'true' to pod '{pod.metadata.name}'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to add labels to pod '{pod.metadata.name}': {e}")
+            return False
+
     def get_existing_log_filename(self, job_id):
         """
         Retrieves the existing temporary log file path for a job without creating a new one.
@@ -322,7 +378,12 @@ class KubernetesJobLogHandler:
                                 logger.info(
                                     f"Removed local log file '{log_filename}' since it already exists in storage.")
                         else:
-                            self.object_storage_provider.upload_file(project, spider, log_filename)
+                            object_name = self.object_storage_provider.upload_file(project, spider, log_filename)
+                            if object_name:
+                                try:
+                                    self._add_object_name_label(pod, object_name)
+                                except Exception as e:
+                                    logger.error(f"Exception while adding label for job '{job_id}': {e}")
                             os.remove(log_filename)
                             logger.info(f"Removed local log file '{log_filename}' after successful upload.")
                     else:

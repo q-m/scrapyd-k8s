@@ -133,7 +133,8 @@ class LibcloudObjectStorage:
 
         Returns
         -------
-        None
+        str or None
+            The object name in storage if upload is successful, None otherwise.
 
         Logs
         ----
@@ -172,6 +173,10 @@ class LibcloudObjectStorage:
                     f"Successfully uploaded compressed file '{object_name}' to container '{self._container_name}'.")
             else:
                 logger.info(f"Successfully uploaded file '{object_name}' to container '{self._container_name}'.")
+
+            # Return object_name on successful upload
+            return object_name
+
         except (ObjectError, ContainerDoesNotExistError, InvalidContainerNameError) as e:
             logger.exception(f"Error uploading the file '{object_name}': {e}")
         except Exception as e:

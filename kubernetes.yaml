@@ -166,6 +166,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["pods"]
+    # add "patch" if you use joblogs feature
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods/exec"]

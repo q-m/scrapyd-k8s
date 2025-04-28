@@ -46,6 +46,36 @@ For Kubernetes, it is important to set resource limits.
 TODO: explain how to set limits, with default, project and spider specificity.
 
 ### [joblogs] section
+
+The joblogs section is used to configure the job logs feature. It is not enabled by default, but can be activated if you
+choose to use it. The job logs feature allows you to collect logs from the Kubernetes cluster and store them in a specified
+directory. The logs are collected from the pods running on the cluster and can be compressed using a specified method.
+The job logs feature is implemented only for Kubernetes and is not available for Docker.
+
+When the log file was uploaded to the specified storage, the pod is labeled with org.scrapy.log_file_uploaded=true, it also
+contains labels to specify an end location of the log files in the storage.
+Since the label field has limitation in the number of symbols, an end location is split into several labels, each of them
+contains a part of the end location. The labels are named as follows:
+  * org.scrapy.project
+  * org.scrapy.spider
+  * org.scrapy.job_id
+  * org.scrapy.extension
+
+How can you build the end location from these labels? Complete the following line
+  * logs/`org.scrapy.project`/`org.scrapy.spider`/`org.scrapy.job_id`.`org.scrapy.extension` 
+
+**Important**: if you used the `compression_method` parameter, the extension of the log file then have two extensions. The
+first extension is `.log` and the second extension is extracted to the label `org.scrapy.extension`. 
+
+For example, if you used
+`compression_method = gzip`, the log file will be named as 
+  * logs/`org.scrapy.project`/`org.scrapy.spider`/`org.scrapy.job_id`.log.`org.scrapy.extension`
+
+If you haven't specified a compression method, then none was applied and the final location of the log file is
+* logs/`org.scrapy.project`/`org.scrapy.spider`/`org.scrapy.job_id`.`org.scrapy.extension`
+
+The joblogs section contains the following parameters:
+
   * `logs_dir`     - a directory to store log files collected on k8s cluster (implemented only for Kubernetes). If you are using a Persistent Volume, keep in mind, that the provided path should be mounted in the deployment manifest. Read and write permissions should be granted to allow actions with log files in the provided directory, thus a [securityContext](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) was added to the deployment manifest.
   * `compression_method` - a method to compress log files. Available options are `gzip` `bzip2`, `lzma`, `brotli` and `none`. If no compression_method is provided, it defaults to `none`.
 
