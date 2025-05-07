@@ -86,8 +86,7 @@ class KubernetesJobLogHandler:
 
     def _add_object_name_label(self, pod, object_name):
         """
-        Adds extension as label to the pod.
-        Adds label that the log file was uploaded.
+        Adds file metadata as labels to the pod.
 
         Parameters
         ----------
@@ -99,43 +98,40 @@ class KubernetesJobLogHandler:
         Returns
         -------
         bool
-            True if the label was added successfully, False otherwise.
+            True if labels were added successfully, False otherwise.
         """
         try:
-            extension = os.path.splitext(object_name)[1][1:]
-            v1 = client.CoreV1Api()
+            basename = os.path.basename(object_name)
 
-            # Create a body for the patch operation
-            patch_extension = {
+            extension = "none"
+            compression = "none"
+
+            if basename.endswith(".log"):
+                extension = "log"
+            elif ".log." in basename:
+                extension = "log"
+                compression = basename.rsplit(".log.", 1)[1]
+
+            patch_body = {
                 "metadata": {
                     "labels": {
-                        "org.scrapy.log_file_extension": extension
-                    }
-                }
-            }
-
-            patch_upload_label = {
-                "metadata": {
-                    "labels": {
+                        "org.scrapy.extension": extension,
+                        "org.scrapy.compression": compression,
                         "org.scrapy.log_file_uploaded": "true"
                     }
                 }
             }
 
-            # Patch the pod with the new label
+            v1 = client.CoreV1Api()
             v1.patch_namespaced_pod(
                 name=pod.metadata.name,
                 namespace=self.namespace,
-                body=patch_extension
-            )
-            v1.patch_namespaced_pod(
-                name=pod.metadata.name,
-                namespace=self.namespace,
-                body=patch_upload_label
+                body=patch_body
             )
 
-            logger.info(f"Added log_file_extension labels '{extension}' and log_file_uploaded: 'true' to pod '{pod.metadata.name}'")
+            logger.info(f"Added labels to pod '{pod.metadata.name}': extension='{extension}', compression='{compression}', uploaded='true'")
             return True
+
         except Exception as e:
             logger.error(f"Failed to add labels to pod '{pod.metadata.name}': {e}")
             return False
