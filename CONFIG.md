@@ -46,9 +46,38 @@ For Kubernetes, it is important to set resource limits.
 TODO: explain how to set limits, with default, project and spider specificity.
 
 ### [joblogs] section
+
+The joblogs section is used to configure the job logs feature. It is not enabled by default, but can be activated if you
+choose to use it. The job logs feature allows you to collect logs from the Kubernetes cluster and store them in a specified
+directory. The logs are collected from the pods running on the cluster and can be compressed using a specified method.
+If the log file was successfully uploaded to the remote storage, the pod is labeled with `org.scrapy.log_file_uploaded: true`.
+The job logs feature is implemented only for Kubernetes and is not available for Docker.
+
+The joblogs section contains the following parameters:
+
   * `logs_dir`     - a directory to store log files collected on k8s cluster (implemented only for Kubernetes). If you are using a Persistent Volume, keep in mind, that the provided path should be mounted in the deployment manifest. Read and write permissions should be granted to allow actions with log files in the provided directory, thus a [securityContext](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) was added to the deployment manifest.
   * `compression_method` - a method to compress log files. Available options are `gzip` `bzip2`, `lzma`, `brotli` and `none`. If no compression_method is provided, it defaults to `none`.
 
+If you would like to provide a `compression_method` parameter, please, read the dedicated section below.
+
+### compression for joblogs
+
+When the log file was uploaded to the specified storage, the pod is labeled with org.scrapy.log_file_uploaded=true, it also
+contains labels to specify an end location of the log files in the storage.
+Since the label field has limitation in the number of symbols, an end location is split into several labels, each of them
+contains a part of the end location. The labels are named as follows:
+  * org.scrapy.project
+  * org.scrapy.spider
+  * org.scrapy.job_id
+  * org.scrapy.extension
+  * org.scrapy.compression
+
+How can you build the end location from these labels? Complete the following line
+  * logs/`org.scrapy.project`/`org.scrapy.spider`/`org.scrapy.job_id`.`org.scrapy.extension`.`org.scrapy.compression` 
+
+**Important**: if you did not use the `compression_method` parameter, the label `org.scrapy.compression` has `none` value
+so the final destination of the log file will be:
+  * logs/`org.scrapy.project`/`org.scrapy.spider`/`org.scrapy.job_id`.`org.scrapy.extension`
 
 ### Kubernetes API interaction
 
