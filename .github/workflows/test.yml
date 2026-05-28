@@ -143,12 +143,12 @@ jobs:
             # wait for scrapyd-k8s to become ready
             kubectl wait --for=condition=Available deploy/scrapyd-k8s --timeout=60s
             curl -s --retry 10 --retry-delay 2 --retry-all-errors `minikube service scrapyd-k8s --url`/daemonstatus.json
-            # run test
+            # run test (and show logs on test failure)
             TEST_WITH_K8S=1 \
               TEST_BASE_URL=`minikube service scrapyd-k8s --url` \
               TEST_MAX_WAIT=60 \
               TEST_AVAILABLE_VERSIONS=latest,`skopeo list-tags docker://ghcr.io/q-m/scrapyd-k8s-spider-example | jq -r '.Tags | map(select(. != "latest" and (startswith("sha-") | not))) | join(",")'` \
-              pytest -vv --color=yes "$test"
+              pytest -vv --color=yes "$test" || (kubectl logs deploy/scrapyd-k8s && false)
             # delete al jobs to start with a clean slate next time
             kubectl delete job --all
             # stop scrapyd-k8s and delete test-specific configmap
