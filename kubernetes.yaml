@@ -104,9 +104,6 @@ data:
     requests_memory = 0.2G
     limits_cpu = 0.8
     limits_memory = 0.5G
-    
-    [joblogs]
-    logs_dir = /data/joblogs
 ---
 apiVersion: v1
 kind: Secret
@@ -169,7 +166,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods/exec"]
-    verbs: ["get"]
+    verbs: ["get", "create"]
   - apiGroups: [""]
     resources: ["pods/log"]
     verbs: ["get"]

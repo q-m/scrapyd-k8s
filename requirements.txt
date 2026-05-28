@@ -1,8 +1,9 @@
 docker>=5.0.0
-kubernetes>=27.2.0 # introduction of suspend in jobspec
+kubernetes>=27.2.0,<36.0.0 # introduction of suspend in jobspec; 36 has issues with joblogs
 flask>=2.0.0
 natsort>=8.0.0
 Flask-BasicAuth>=0.2.0
 MarkupSafe>=2.1.5
 apache-libcloud>=3.8.0
+fasteners>=0.20 # for libcloud local provider
 brotli>=1.1.0 # only if you plan to use brotli compression for log files in joblogs module
