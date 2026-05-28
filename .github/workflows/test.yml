@@ -50,6 +50,8 @@ jobs:
         run: |
           for test in scrapyd_k8s/tests/integration/test_*.py; do
             echo; echo "# $test"
+            localconfig=`echo "$test" | sed 's/\.py$/\.local.sh/'`
+            [ -x "$localconfig" ] && "$localconfig" up || true
             # run scrapyd-k8s with test-specific configuration file
             cfg=`echo "$test" | sed 's/\.py$/.conf/'`
             python -m scrapyd_k8s -c scrapyd_k8s.sample-docker.conf -c "$cfg" &
@@ -59,6 +61,8 @@ jobs:
             pytest -vv --color=yes "$test"
             # stop scrapyd-k8s again
             kill %1; wait %1 || true
+            # cleanup
+            [ -x "$localconfig" ] && "$localconfig" down || true
           done
 
   test-manifest:
@@ -128,15 +132,13 @@ jobs:
 
       - name: Run tests
         run: |
-          # setup for in-cluster k8s
-          # for each integration test file
           for test in scrapyd_k8s/tests/integration/test_*.py; do
             echo; echo "# $test"
             # run scrapyd-k8s with test-specific configuration file, run k8s patch if available
             cfg=`echo "$test" | sed 's/\.py$/.conf/'`
             kubectl create cm scrapyd-k8s-testcfg --from-file=scrapyd_k8s.test.conf="$cfg"
             k8sconfig=`echo "$test" | sed 's/\.py$/\.k8s.sh/'`
-            [ -x "$k8sconfig" ] && "$k8sconfig" up
+            [ -x "$k8sconfig" ] && "$k8sconfig" up || true
             kubectl scale --replicas=1 deploy/scrapyd-k8s
             # wait for scrapyd-k8s to become ready
             kubectl wait --for=condition=Available deploy/scrapyd-k8s --timeout=60s
@@ -153,7 +155,7 @@ jobs:
             kubectl scale --replicas=0 deploy/scrapyd-k8s
             kubectl wait --for=delete pod -l app.kubernetes.io/name=scrapyd-k8s --timeout=90s
             kubectl delete cm scrapyd-k8s-testcfg --wait
-            [ -x "$k8sconfig" ] && "$k8sconfig" down
+            [ -x "$k8sconfig" ] && "$k8sconfig" down || true
           done
 
   test-k8s:
@@ -188,6 +190,8 @@ jobs:
         run: |
           for test in scrapyd_k8s/tests/integration/test_*.py; do
             echo "# $test"
+            localconfig=`echo "$test" | sed 's/\.py$/\.local.sh/'`
+            [ -x "$localconfig" ] && "$localconfig" up || true
             # run scrapyd-k8s with test-specific configuration file
             cfg=`echo "$test" | sed 's/\.py$/.conf/'`
             [ -e "$cfg" ] || cfg=/dev/null
@@ -201,4 +205,6 @@ jobs:
               pytest -vv --color=yes "$test"
             # stop scrapyd-k8s again
             kill %1; wait %1 || true
+            # cleanup
+            [ -x "$localconfig" ] && "$localconfig" down || true
           done
