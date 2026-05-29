@@ -45,10 +45,20 @@ For Kubernetes, it is important to set resource limits.
 
 TODO: explain how to set limits, with default, project and spider specificity.
 
-### [joblogs] section
-  * `logs_dir`     - a directory to store log files collected on k8s cluster (implemented only for Kubernetes). If you are using a Persistent Volume, keep in mind, that the provided path should be mounted in the deployment manifest. Read and write permissions should be granted to allow actions with log files in the provided directory, thus a [securityContext](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) was added to the deployment manifest.
-  * `compression_method` - a method to compress log files. Available options are `gzip` `bzip2`, `lzma`, `brotli` and `none`. If no compression_method is provided, it defaults to `none`.
+### `[joblogs]` section
 
+scrapyd-k8s can collect logs from running spider jobs, store them in a file, and upload them to object storage.
+
+  * `logs_dir` - a directory to store log files collected on k8s cluster (implemented only for Kubernetes). If you are using a Persistent Volume, keep in mind, that the provided path should be mounted in the deployment manifest. Read and write permissions should be granted to allow actions with log files in the provided directory, e.g. with a [securityContext](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) in the deployment manifest.
+  * `storage_provider` - a [libcloud](https://libcloud.apache.org/) storage provider for uploading to object storage.
+  * `container_name` - container or bucket name for uploading to object storage.
+  * `compression_method` - a method to compress log files on object storage. Available options are `gzip` `bzip2`, `lzma`, `brotli` and `none`. If no `compression_method` is provided, it defaults to `none`.
+
+### `[joblogs.storage.<provider>]` section
+
+If you have configured a `storage_provider` in the `[joblogs]` section, you need to have a corresponding section
+to configure the storage provider (replace `<provider>` in the section name with the value of `storage_provider`).
+These are passed to libcloud. This contains usually `key`, and other provider-specific values.
 
 ### Kubernetes API interaction
 
